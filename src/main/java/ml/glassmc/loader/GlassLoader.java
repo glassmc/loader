@@ -74,6 +74,7 @@ public class GlassLoader {
         List<ShardInfo> shardInfoFiltered = shardInfoComplete.stream()
                 .filter(shardInfo -> shardInfo.getHooks().containsKey(hookType)).collect(Collectors.toList());
         int index = 0;
+        int failedCounter = 0;
 
         while(index < shardInfoFiltered.size()) {
             ShardInfo shardInfo = shardInfoFiltered.get(index);
@@ -101,9 +102,19 @@ public class GlassLoader {
                     e.printStackTrace();
                 }
                 index++;
+                failedCounter = 0;
             } else {
                 shardInfoFiltered.remove(shardInfo);
                 shardInfoFiltered.add(shardInfo);
+                failedCounter++;
+            }
+
+            if(failedCounter > shardInfoFiltered.size()) {
+                System.err.println("Failed to load shard(s):");
+                for(int i = index; i < shardInfoFiltered.size(); i++) {
+                    System.err.println(" - " + shardInfoFiltered.get(i).getSpecification().getID());
+                }
+                index = shardInfoFiltered.size();
             }
         }
     }
