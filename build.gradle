@@ -1,3 +1,14 @@
 plugins {
     id 'java'
 }
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation group: 'commons-io', name: 'commons-io', version: '2.9.0'
+    implementation group: 'org.json', name: 'json', version: '20210307'
+
+    testImplementation group: 'junit', name: 'junit', version: '4.13'
+}
