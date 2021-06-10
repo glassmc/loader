@@ -7,6 +7,7 @@ public class TestMainHook implements Hook {
 
     @Override
     public void run() {
+        System.out.println("Hook!");
         GlassLoader.getInstance().registerAPI(new TestAPI());
     }
 
