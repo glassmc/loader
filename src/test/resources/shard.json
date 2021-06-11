@@ -1,8 +1,0 @@
-{
-  "id": "test",
-  "version": "1.8.9",
-  "reference": "ml.glassmc.test.shard.TestReference",
-  "dependencies": {
-    "test": "1.8.x"
-  }
-}
