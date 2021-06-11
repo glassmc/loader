@@ -45,14 +45,21 @@ object GlassLoader {
             hooks.putAll(reference.listeners)
         }
 
-        val dependenciesJSON = if (shardInfoJSON.has("dependencies")) shardInfoJSON.getJSONObject("dependencies") else JSONObject()
-        val dependencies: MutableList<ShardSpecification> = ArrayList()
-        for (dependencyID in dependenciesJSON.keySet()) {
-            val dependencyVersion = dependenciesJSON.getString(id)
-            dependencies.add(ShardSpecification(dependencyID, dependencyVersion))
+        val requiresJSON = if (shardInfoJSON.has("requires")) shardInfoJSON.getJSONObject("requires") else JSONObject()
+        val requires: MutableList<ShardSpecification> = ArrayList()
+        for (dependencyID in requiresJSON.keySet()) {
+            val dependencyVersion = requiresJSON.getString(dependencyID)
+            requires.add(ShardSpecification(dependencyID, dependencyVersion))
         }
 
-        return ShardInfo(specification, hooks, dependencies)
+        val breaksJSON = if (shardInfoJSON.has("breaks")) shardInfoJSON.getJSONObject("breaks") else JSONObject()
+        val breaks: MutableList<ShardSpecification> = ArrayList()
+        for (dependencyID in breaksJSON.keySet()) {
+            val dependencyVersion = breaksJSON.getString(dependencyID)
+            breaks.add(ShardSpecification(dependencyID, dependencyVersion))
+        }
+
+        return ShardInfo(specification, hooks, requires, breaks)
     }
 
     fun runHooks(hookType: Class<*>) {
@@ -65,19 +72,32 @@ object GlassLoader {
         val availableShards = getAvailableShards(shardInfoFiltered)
         while (index < shardInfoFiltered.size) {
             val shardInfo = shardInfoFiltered[index]
-            var dependenciesSatisfied = true
-            for (dependency in shardInfo.dependencies) {
-                var satisfied = false
+            var requiresSatisfied = true
+            for (require in shardInfo.requires) {
+                var found = false
                 for (specification in availableShards) {
-                    if (dependency.isSatisfied(specification)) {
-                        satisfied = true
+                    if (require.isSatisfied(specification)) {
+                        found = true
                     }
                 }
-                if (!satisfied) {
-                    dependenciesSatisfied = false
+                if (!found) {
+                    requiresSatisfied = false
                 }
             }
-            if (dependenciesSatisfied) {
+            var breaksSatisfied = true
+            for (`break` in shardInfo.breaks) {
+                var found = false
+                for (specification in availableShards) {
+                    if (`break`.isSatisfied(specification)) {
+                        found = true
+                    }
+                }
+                if (found) {
+                    breaksSatisfied = false
+                }
+            }
+
+            if (requiresSatisfied && breaksSatisfied) {
                 val hookClass = shardInfo.hooks[hookType]!!
                 val hook = hookClass.newInstance() as Listener
                 hook.run()
@@ -90,9 +110,9 @@ object GlassLoader {
                 failedCounter++
             }
             if (failedCounter > shardInfoFiltered.size) {
-                println("Failed to load shard(s):")
+                System.err.println("Failed to load shard(s):")
                 for (i in index until shardInfoFiltered.size) {
-                    println(" - " + shardInfoFiltered[i].specification.id)
+                    System.err.println(" - " + shardInfoFiltered[i].specification.id)
                 }
                 index = shardInfoFiltered.size
             }

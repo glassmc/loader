@@ -1,6 +1,6 @@
 package ml.glassmc.loader
 
-class Loader(): ClassLoader() {
+class Loader: ClassLoader() {
 
     private val parentLoader: ClassLoader = getSystemClassLoader()
 

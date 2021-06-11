@@ -13,6 +13,7 @@ class ShardSpecification(val id: String, val version: String) {
         if (version == "*") {
             return true
         }
+
         val thisVersion = Version(version.replace("[^0-9.,x]+".toRegex(), ""))
         val otherVersion = Version(other.version)
         if (version.startsWith(">")) {
@@ -35,13 +36,13 @@ class ShardSpecification(val id: String, val version: String) {
         private val separated: MutableList<String> = ArrayList()
 
         init {
-            separated.addAll(versionString.split("\\."))
+            separated.addAll(versionString.split("."))
         }
 
         fun compare(other: Version): ComparisonResult {
-            val maxSize = max(separated.size, other.separated.size)
+            val maxSize = max(this.separated.size, other.separated.size)
             for (i in 0 until maxSize) {
-                val thisNumberString = if (separated.size > i) separated[i] else "0"
+                val thisNumberString = if (this.separated.size > i) this.separated[i] else "0"
                 val otherNumberString = if (other.separated.size > i) other.separated[i] else "0"
 
                 if (thisNumberString != "x" && otherNumberString != "x") {
