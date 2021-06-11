@@ -12,11 +12,7 @@ class Loader(): ClassLoader() {
         if(name.startsWith("java.") || name.startsWith("jdk.") || name.startsWith("sun.")) {
             return parentLoader.loadClass(name)
         }
-        var data = loadClassData(name)!!
-
-        /*for(transformer in transformers) {
-            data = transformer.transform(name, data)
-        }*/
+        val data = loadClassData(name) ?: throw ClassNotFoundException(name)
 
         return defineClass(name, data, 0, data.size)
     }

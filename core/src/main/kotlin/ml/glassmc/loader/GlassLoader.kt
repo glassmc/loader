@@ -55,7 +55,7 @@ object GlassLoader {
         return ShardInfo(specification, hooks, dependencies)
     }
 
-    fun runHooks(hookType: Class<*>?) {
+    fun runHooks(hookType: Class<*>) {
         val shardInfoComplete = collectShardInfo()
         val shardInfoFiltered = shardInfoComplete.stream()
                 .filter { shardInfo: ShardInfo -> shardInfo.hooks.containsKey(hookType) }.collect(Collectors.toList())
