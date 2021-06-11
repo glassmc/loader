@@ -1,6 +1,6 @@
-package ml.glassmc.loader
+package ml.glassmc.loader.launch
 
-class Loader: ClassLoader() {
+class Loader(private val transformers: List<ITransformer>): ClassLoader() {
 
     private val parentLoader: ClassLoader = getSystemClassLoader()
 
@@ -10,9 +10,13 @@ class Loader: ClassLoader() {
         loadedClasses.add(name)
 
         if(name.startsWith("java.") || name.startsWith("jdk.") || name.startsWith("sun.")) {
-            return parentLoader.loadClass(name)
+            return this.parentLoader.loadClass(name)
         }
-        val data = loadClassData(name) ?: throw ClassNotFoundException(name)
+        var data = loadClassData(name) ?: throw ClassNotFoundException(name)
+
+        for(transformer in this.transformers) {
+            data = transformer.transform(name, data)
+        }
 
         return defineClass(name, data, 0, data.size)
     }

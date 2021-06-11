@@ -1,5 +1,6 @@
 package ml.glassmc.loader
 
+import ml.glassmc.loader.launch.Launcher
 import org.apache.commons.io.IOUtils
 import org.json.JSONObject
 import java.util.HashMap
@@ -8,6 +9,8 @@ import java.util.ArrayList
 import java.util.stream.Collectors
 
 object GlassLoader {
+
+    val launcher = Launcher()
 
     private val virtualShards: MutableList<ShardSpecification> = ArrayList()
     val apis: MutableList<Any> = ArrayList()
