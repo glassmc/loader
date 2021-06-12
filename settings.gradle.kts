@@ -1,3 +1,4 @@
 include(
-        ":core"
+        ":core",
+        ":impl:client"
 )

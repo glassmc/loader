@@ -11,7 +11,7 @@ class Launcher {
 
         val `class` = classLoader.loadClass("ml.glassmc.loader.launch.Wrapper")
         val method = `class`.getMethod("launch", String::class.java, Array<String>::class.java)
-        method.invoke(`class`.newInstance(), target, arguments)
+        method.invoke(`class`.newInstance(), target, arguments.toTypedArray())
     }
 
 }
