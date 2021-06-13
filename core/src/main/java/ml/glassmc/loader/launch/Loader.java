@@ -4,9 +4,10 @@ import org.apache.commons.io.IOUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.security.SecureClassLoader;
 import java.util.List;
 
-public class Loader extends ClassLoader {
+public class Loader extends SecureClassLoader {
 
     private final ClassLoader parent = ClassLoader.getSystemClassLoader();
 
@@ -17,8 +18,8 @@ public class Loader extends ClassLoader {
     }
 
     @Override
-    public Class<?> loadClass(String name) throws ClassNotFoundException {
-        if(name.startsWith("java.") || name.startsWith("jdk.") || name.startsWith("sun.") || name.startsWith("com.sun") || name.startsWith("javax.")) {
+    protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+        if(name.startsWith("java.") || name.startsWith("jdk.") || name.startsWith("sun.") || name.startsWith("com.sun.") || name.startsWith("javax.") || name.startsWith("org.xml.") || name.startsWith("org.w3c.")) {
             return this.parent.loadClass(name);
         }
         byte[] data = loadClassData(name);
