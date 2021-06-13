@@ -18,7 +18,7 @@ public class Loader extends ClassLoader {
 
     @Override
     public Class<?> loadClass(String name) throws ClassNotFoundException {
-        if(name.startsWith("java.") || name.startsWith("jdk.") || name.startsWith("sun.")) {
+        if(name.startsWith("java.") || name.startsWith("jdk.") || name.startsWith("sun.") || name.startsWith("com.sun") || name.startsWith("javax.")) {
             return this.parent.loadClass(name);
         }
         byte[] data = loadClassData(name);
@@ -37,7 +37,7 @@ public class Loader extends ClassLoader {
         InputStream inputStream = this.parent.getResourceAsStream(className.replace(".", "/") + ".class");
         try {
             if (inputStream != null) {
-                return IOUtils.readFully(inputStream, inputStream.available());
+                return IOUtils.toByteArray(inputStream);
             }
         } catch (IOException e) {
             e.printStackTrace();
