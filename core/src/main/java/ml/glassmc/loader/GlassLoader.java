@@ -2,6 +2,7 @@ package ml.glassmc.loader;
 
 import ml.glassmc.loader.launch.Launcher;
 import org.apache.commons.io.IOUtils;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.IOException;
@@ -40,7 +41,7 @@ public class GlassLoader {
             ShardInfo shardInfo = shardInfoFiltered.get(index);
             boolean dependenciesSatisfied = true;
             for(ShardSpecification dependency : shardInfo.getDependencies()) {
-                boolean found = false;
+                boolean found = true; //TODO: make hook dependencies or something
                 for(ShardSpecification specification : availableShards) {
                     if(dependency.isSatisfied(specification)) {
                         found = true;
@@ -80,7 +81,20 @@ public class GlassLoader {
     private List<ShardInfo> collectShardInfo() {
         ClassLoader classLoader = GlassLoader.class.getClassLoader();
 
-        List<ShardInfo> shardInfo = new ArrayList<>();
+        List<ShardSpecification> shards = new ArrayList<>();
+        try {
+            Enumeration<URL> shardInfoLocations = classLoader.getResources("shard.json");
+
+            while(shardInfoLocations.hasMoreElements()) {
+                InputStream shardInfoStream = shardInfoLocations.nextElement().openStream();
+                String shardInfoText = IOUtils.toString(shardInfoStream, StandardCharsets.UTF_8);
+                shards.add(this.parseShardSpecification(shardInfoText));
+            }
+        } catch(IOException e) {
+            e.printStackTrace();
+        }
+
+        List<ShardInfo> shardInfoList = new ArrayList<>();
 
         try {
             Enumeration<URL> shardInfoLocations = classLoader.getResources("shard.json");
@@ -88,20 +102,58 @@ public class GlassLoader {
             while(shardInfoLocations.hasMoreElements()) {
                 InputStream shardInfoStream = shardInfoLocations.nextElement().openStream();
                 String shardInfoText = IOUtils.toString(shardInfoStream, StandardCharsets.UTF_8);
-                shardInfo.add(this.parseShardInfo(shardInfoText));
+                ShardInfo shardInfo = this.parseShardInfo(shardInfoText);
+
+                boolean satisfied = true;
+                for(ShardSpecification dependency : shardInfo.getDependencies()) {
+                    boolean found = false;
+                    for(ShardSpecification specification : shards) {
+                        if(!dependency.isSatisfied(specification)) {
+                            found = true;
+                        }
+                    }
+
+                    if(!found) {
+                        satisfied = false;
+                    }
+                }
+
+                if(satisfied) {
+                    shardInfoList.add(shardInfo);
+
+                    for(ShardInfo implementation : new ArrayList<>(shardInfo.getImplementations())) {
+                        boolean satisfied1 = true;
+                        for(ShardSpecification dependency : implementation.getDependencies()) {
+                            boolean found = false;
+                            for(ShardSpecification specification : shards) {
+                                if(!dependency.isSatisfied(specification)) {
+                                    found = true;
+                                }
+                            }
+
+                            if(!found) {
+                                satisfied1 = false;
+                            }
+                        }
+
+                        if(!satisfied1) {
+                            shardInfo.getImplementations().remove(implementation);
+                        }
+                    }
+                }
             }
-        } catch (IOException e) {
+        } catch(IOException e) {
             e.printStackTrace();
         }
 
-        return shardInfo;
+        return shardInfoList;
     }
 
     private ShardInfo parseShardInfo(String shardInfoText) {
         JSONObject shardInfoJSON = new JSONObject(shardInfoText);
 
-        String id = shardInfoJSON.getString("id");
-        String version = shardInfoJSON.getString("version");
+        String id = shardInfoJSON.has("id") ? shardInfoJSON.getString("id") : null;
+        String version = shardInfoJSON.has("version") ? shardInfoJSON.getString("version") : null;
         ShardSpecification specification = new ShardSpecification(id, version);
 
         String referenceClass = shardInfoJSON.has("reference") ? shardInfoJSON.getString("reference") : null;
@@ -122,7 +174,30 @@ public class GlassLoader {
             dependencies.add(new ShardSpecification(dependencyID, dependencyVersion));
         }
 
-        return new ShardInfo(specification, hooks, dependencies);
+        JSONArray implementationsJSON = shardInfoJSON.has("implementations") ? shardInfoJSON.getJSONArray("implementations") : new JSONArray();
+        List<ShardInfo> implementations = new ArrayList<>();
+        for(Object implementationIDObject : implementationsJSON) {
+            String implementationId = (String) implementationIDObject;
+            InputStream shardInfoStream = GlassLoader.class.getClassLoader().getResourceAsStream(id + "/" + implementationId + ".json");
+            try {
+                if (shardInfoStream != null) {
+                    String implementationInfoText = IOUtils.toString(shardInfoStream, StandardCharsets.UTF_8);
+                    implementations.add(this.parseShardInfo(implementationInfoText));
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        return new ShardInfo(specification, hooks, dependencies, implementations);
+    }
+
+    private ShardSpecification parseShardSpecification(String shardInfoText) {
+        JSONObject shardInfoJSON = new JSONObject(shardInfoText);
+
+        String id = shardInfoJSON.getString("id");
+        String version = shardInfoJSON.getString("version");
+        return new ShardSpecification(id, version);
     }
 
     private List<ShardSpecification> getAvailableShards(List<ShardInfo> shardInfoList) {
