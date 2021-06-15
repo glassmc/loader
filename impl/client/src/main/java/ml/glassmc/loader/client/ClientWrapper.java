@@ -9,7 +9,7 @@ import java.lang.reflect.Method;
 public class ClientWrapper {
 
     public static void main(String[] args) {
-        GlassLoader.getInstance().runHooks(ClientInitializeHook.class);
+        GlassLoader.getInstance().runHooks("client-initialize");
 
         try {
             Class<?> mainClass = Class.forName("net.minecraft.client.main.Main");

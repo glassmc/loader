@@ -13,7 +13,7 @@ public class GlassClientMain {
         GlassLoader.getInstance().registerVirtualShard(new ShardSpecification("client-loader", "0.0.1"));
         GlassLoader.getInstance().registerVirtualShard(new ShardSpecification("client", args[Arrays.asList(args).indexOf("--version") + 1]));
 
-        GlassLoader.getInstance().runHooks(ClientPreInitializeHook.class);
+        GlassLoader.getInstance().runHooks("client-initialize-pre");
 
         Launcher launcher = GlassLoader.getInstance().getLauncher();
         launcher.setTarget("ml.glassmc.loader.client.ClientWrapper");

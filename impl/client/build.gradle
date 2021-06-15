@@ -1,6 +1,5 @@
 plugins {
     id 'java'
-    id 'java-library'
 }
 
 repositories {
@@ -8,5 +7,5 @@ repositories {
 }
 
 dependencies {
-    implementation project(':core')
+    implementation project(':')
 }

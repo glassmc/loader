@@ -24,12 +24,13 @@ public class GlassLoader {
 
     private final List<ShardSpecification> virtualShards = new ArrayList<>();
     private final List<Object> apis = new ArrayList<>();
+    private final Map<Class<?>, Object> interfaces = new HashMap<>();
 
     private GlassLoader() {
         this.registerVirtualShard(new ShardSpecification("loader", "0.0.1"));
     }
 
-    public void runHooks(Class<?> hook) {
+    public void runHooks(String hook) {
         List<ShardInfo> shardInfoComplete = this.collectShardInfo();
         List<ShardInfo> shardInfoFiltered = shardInfoComplete.stream()
                 .filter(shardInfo -> shardInfo.getListeners().containsKey(hook)).collect(Collectors.toList());
@@ -53,12 +54,13 @@ public class GlassLoader {
             }
 
             if(dependenciesSatisfied) {
-                Class<?> listenerClass = shardInfo.getListeners().get(hook);
-                try {
-                    Listener listener = (Listener) listenerClass.newInstance();
-                    listener.run();
-                } catch (InstantiationException | IllegalAccessException e) {
-                    e.printStackTrace();
+                for(Class<?> listenerClass : shardInfo.getListeners().get(hook)) {
+                    try {
+                        Listener listener = (Listener) listenerClass.newInstance();
+                        listener.run();
+                    } catch (InstantiationException | IllegalAccessException e) {
+                        e.printStackTrace();
+                    }
                 }
 
                 index++;
@@ -102,7 +104,7 @@ public class GlassLoader {
             while(shardInfoLocations.hasMoreElements()) {
                 InputStream shardInfoStream = shardInfoLocations.nextElement().openStream();
                 String shardInfoText = IOUtils.toString(shardInfoStream, StandardCharsets.UTF_8);
-                ShardInfo shardInfo = this.parseShardInfo(shardInfoText);
+                ShardInfo shardInfo = this.parseShardInfo(shardInfoText, null);
 
                 boolean satisfied = true;
                 for(ShardSpecification dependency : shardInfo.getDependencies()) {
@@ -149,21 +151,25 @@ public class GlassLoader {
         return shardInfoList;
     }
 
-    private ShardInfo parseShardInfo(String shardInfoText) {
+    private ShardInfo parseShardInfo(String shardInfoText, String overrideID) {
         JSONObject shardInfoJSON = new JSONObject(shardInfoText);
 
-        String id = shardInfoJSON.has("id") ? shardInfoJSON.getString("id") : null;
+        String id = shardInfoJSON.has("id") ? shardInfoJSON.getString("id") : overrideID;
         String version = shardInfoJSON.has("version") ? shardInfoJSON.getString("version") : null;
         ShardSpecification specification = new ShardSpecification(id, version);
 
-        String referenceClass = shardInfoJSON.has("reference") ? shardInfoJSON.getString("reference") : null;
-        Map<Class<?>, Class<? extends Listener>> hooks = new HashMap<>();
-        if(referenceClass != null) {
-            try {
-                Reference reference = (Reference) Class.forName(referenceClass).newInstance();
-                hooks.putAll(reference.getListeners());
-            } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
-                e.printStackTrace();
+        JSONObject listenersJSON = shardInfoJSON.has("listeners") ? shardInfoJSON.getJSONObject("listeners") : new JSONObject();
+        Map<String, List<Class<? extends Listener>>> listeners = new HashMap<>();
+        for(String hook : listenersJSON.keySet()) {
+            listeners.put(hook, new ArrayList<>());
+            JSONArray hookListeners = listenersJSON.getJSONArray(hook);
+            for(Object hookListener : hookListeners) {
+                try {
+                    Class<? extends Listener> listenerClass = (Class<? extends Listener>) Class.forName(((String) hookListener));
+                    listeners.get(hook).add(listenerClass);
+                } catch (ClassNotFoundException e) {
+                    e.printStackTrace();
+                }
             }
         }
 
@@ -177,19 +183,19 @@ public class GlassLoader {
         JSONArray implementationsJSON = shardInfoJSON.has("implementations") ? shardInfoJSON.getJSONArray("implementations") : new JSONArray();
         List<ShardInfo> implementations = new ArrayList<>();
         for(Object implementationIDObject : implementationsJSON) {
-            String implementationId = (String) implementationIDObject;
-            InputStream shardInfoStream = GlassLoader.class.getClassLoader().getResourceAsStream(id + "/" + implementationId + ".json");
+            String implementationID = (String) implementationIDObject;
+            InputStream shardInfoStream = GlassLoader.class.getClassLoader().getResourceAsStream(id.replace("-", "/") + "/" + implementationID + ".json");
             try {
                 if (shardInfoStream != null) {
                     String implementationInfoText = IOUtils.toString(shardInfoStream, StandardCharsets.UTF_8);
-                    implementations.add(this.parseShardInfo(implementationInfoText));
+                    implementations.add(this.parseShardInfo(implementationInfoText, id + "-" + implementationID));
                 }
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
 
-        return new ShardInfo(specification, hooks, dependencies, implementations);
+        return new ShardInfo(specification, listeners, dependencies, implementations);
     }
 
     private ShardSpecification parseShardSpecification(String shardInfoText) {
@@ -224,6 +230,14 @@ public class GlassLoader {
             }
         }
         return null;
+    }
+
+    public <T> void registerInterface(Class<T> interfaceClass, T implementer) {
+        this.interfaces.put(interfaceClass, implementer);
+    }
+
+    public <T> T getInterface(Class<T> interfaceClass) {
+        return interfaceClass.cast(this.interfaces.get(interfaceClass));
     }
 
     public Launcher getLauncher() {
