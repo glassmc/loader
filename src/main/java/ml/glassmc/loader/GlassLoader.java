@@ -1,12 +1,15 @@
 package ml.glassmc.loader;
 
 import ml.glassmc.loader.launch.Launcher;
+import org.apache.commons.io.Charsets;
 import org.apache.commons.io.IOUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -96,13 +99,20 @@ public class GlassLoader {
             e.printStackTrace();
         }
 
+        shards.addAll(this.virtualShards);
+
         List<ShardInfo> shardInfoList = new ArrayList<>();
 
         try {
-            Enumeration<URL> shardInfoLocations = classLoader.getResources("shard.json");
+            List<String> resources = IOUtils.readLines(classLoader.getResourceAsStream("glass/"), Charsets.UTF_8);
 
-            while(shardInfoLocations.hasMoreElements()) {
-                InputStream shardInfoStream = shardInfoLocations.nextElement().openStream();
+            List<URL> shardInfoURLList = new ArrayList<>();
+            for(String resource : resources){
+                shardInfoURLList.add(classLoader.getResource("glass/" + resource + "/info.json"));
+            }
+
+            for(URL shardInfoURL : shardInfoURLList) {
+                InputStream shardInfoStream = shardInfoURL.openStream();
                 String shardInfoText = IOUtils.toString(shardInfoStream, StandardCharsets.UTF_8);
                 ShardInfo shardInfo = this.parseShardInfo(shardInfoText, null);
 
@@ -122,26 +132,7 @@ public class GlassLoader {
 
                 if(satisfied) {
                     shardInfoList.add(shardInfo);
-
-                    for(ShardInfo implementation : new ArrayList<>(shardInfo.getImplementations())) {
-                        boolean satisfied1 = true;
-                        for(ShardSpecification dependency : implementation.getDependencies()) {
-                            boolean found = false;
-                            for(ShardSpecification specification : shards) {
-                                if(!dependency.isSatisfied(specification)) {
-                                    found = true;
-                                }
-                            }
-
-                            if(!found) {
-                                satisfied1 = false;
-                            }
-                        }
-
-                        if(!satisfied1) {
-                            shardInfo.getImplementations().remove(implementation);
-                        }
-                    }
+                    this.cleanImplementations(shards, shardInfo);
                 }
             }
         } catch(IOException e) {
@@ -149,6 +140,30 @@ public class GlassLoader {
         }
 
         return shardInfoList;
+    }
+
+    private void cleanImplementations(List<ShardSpecification> shards, ShardInfo shardInfo) {
+        for(ShardInfo implementation : new ArrayList<>(shardInfo.getImplementations())) {
+            boolean satisfied1 = true;
+            for(ShardSpecification dependency : implementation.getDependencies()) {
+                boolean found = false;
+                for(ShardSpecification specification : shards) {
+                    if(dependency.isSatisfied(specification)) {
+                        found = true;
+                    }
+                }
+
+                if(!found) {
+                    satisfied1 = false;
+                }
+            }
+
+            if(!satisfied1) {
+                shardInfo.getImplementations().remove(implementation);
+            } else {
+                this.cleanImplementations(shards, implementation);
+            }
+        }
     }
 
     private ShardInfo parseShardInfo(String shardInfoText, String overrideID) {
@@ -184,7 +199,7 @@ public class GlassLoader {
         List<ShardInfo> implementations = new ArrayList<>();
         for(Object implementationIDObject : implementationsJSON) {
             String implementationID = (String) implementationIDObject;
-            InputStream shardInfoStream = GlassLoader.class.getClassLoader().getResourceAsStream(id.replace("-", "/") + "/" + implementationID + ".json");
+            InputStream shardInfoStream = GlassLoader.class.getClassLoader().getResourceAsStream("glass/" + id.replace("-", "/") + "/" + implementationID + "/info.json");
             try {
                 if (shardInfoStream != null) {
                     String implementationInfoText = IOUtils.toString(shardInfoStream, StandardCharsets.UTF_8);

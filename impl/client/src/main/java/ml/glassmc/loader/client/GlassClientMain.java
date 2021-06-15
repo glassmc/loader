@@ -10,7 +10,7 @@ import java.util.Arrays;
 public class GlassClientMain {
 
     public static void main(String[] args) {
-        GlassLoader.getInstance().registerVirtualShard(new ShardSpecification("client-loader", "0.0.1"));
+        GlassLoader.getInstance().registerVirtualShard(new ShardSpecification("loader-client", "0.0.1"));
         GlassLoader.getInstance().registerVirtualShard(new ShardSpecification("client", args[Arrays.asList(args).indexOf("--version") + 1]));
 
         GlassLoader.getInstance().runHooks("client-initialize-pre");
