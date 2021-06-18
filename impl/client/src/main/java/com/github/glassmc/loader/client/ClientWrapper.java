@@ -1,8 +1,7 @@
-package ml.glassmc.loader.client;
+package com.github.glassmc.loader.client;
 
-import ml.glassmc.loader.GlassLoader;
-import ml.glassmc.loader.ShardSpecification;
-import ml.glassmc.loader.client.hook.ClientInitializeHook;
+import com.github.glassmc.loader.GlassLoader;
+import com.github.glassmc.loader.ShardSpecification;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -11,7 +10,6 @@ import java.util.Arrays;
 public class ClientWrapper {
 
     public static void main(String[] args) {
-        GlassLoader.getInstance().registerVirtualShard(new ShardSpecification("loader-client", "0.0.1"));
         GlassLoader.getInstance().registerVirtualShard(new ShardSpecification("client", args[Arrays.asList(args).indexOf("--version") + 1]));
 
         GlassLoader.getInstance().runHooks("client-initialize");

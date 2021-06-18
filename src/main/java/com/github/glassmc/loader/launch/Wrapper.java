@@ -1,4 +1,4 @@
-package ml.glassmc.loader.launch;
+package com.github.glassmc.loader.launch;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;

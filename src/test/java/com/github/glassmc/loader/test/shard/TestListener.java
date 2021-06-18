@@ -1,6 +1,6 @@
-package ml.glassmc.loader.test.shard;
+package com.github.glassmc.loader.test.shard;
 
-import ml.glassmc.loader.Listener;
+import com.github.glassmc.loader.Listener;
 
 public class TestListener implements Listener {
 

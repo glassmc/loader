@@ -1,15 +1,13 @@
-package ml.glassmc.loader;
+package com.github.glassmc.loader;
 
-import ml.glassmc.loader.launch.Launcher;
+import com.github.glassmc.loader.launch.Launcher;
 import org.apache.commons.io.Charsets;
 import org.apache.commons.io.IOUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
