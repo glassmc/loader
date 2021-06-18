@@ -1,6 +1,6 @@
-package com.github.glassmc.loader;
+package io.github.glassmc.loader;
 
-import com.github.glassmc.loader.launch.Launcher;
+import io.github.glassmc.loader.launch.Launcher;
 import org.apache.commons.io.Charsets;
 import org.apache.commons.io.IOUtils;
 import org.json.JSONArray;

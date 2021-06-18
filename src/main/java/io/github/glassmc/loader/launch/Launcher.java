@@ -1,4 +1,4 @@
-package com.github.glassmc.loader.launch;
+package io.github.glassmc.loader.launch;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -16,7 +16,7 @@ public class Launcher {
         ClassLoader classLoader = new Loader(transformers);
 
         try {
-            Class<?> wrapperClass = classLoader.loadClass("com.github.glassmc.loader.launch.Wrapper");
+            Class<?> wrapperClass = classLoader.loadClass("io.github.glassmc.loader.launch.Wrapper");
             Method launchMethod = wrapperClass.getMethod("launch", String.class, String[].class);
             launchMethod.invoke(null, target, arguments.toArray(new String[0]));
         } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {

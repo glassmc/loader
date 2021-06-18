@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "listeners": {
     "test": [
-      "com.github.glassmc.loader.test.shard.TestListener"
+      "io.github.glassmc.loader.test.shard.TestListener"
     ]
   }
 }

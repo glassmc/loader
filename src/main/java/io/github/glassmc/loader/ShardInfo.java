@@ -1,4 +1,4 @@
-package com.github.glassmc.loader;
+package io.github.glassmc.loader;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;

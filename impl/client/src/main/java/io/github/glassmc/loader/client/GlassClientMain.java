@@ -1,8 +1,8 @@
-package com.github.glassmc.loader.client;
+package io.github.glassmc.loader.client;
 
-import com.github.glassmc.loader.GlassLoader;
-import com.github.glassmc.loader.ShardSpecification;
-import com.github.glassmc.loader.launch.Launcher;
+import io.github.glassmc.loader.GlassLoader;
+import io.github.glassmc.loader.ShardSpecification;
+import io.github.glassmc.loader.launch.Launcher;
 
 import java.util.Arrays;
 
@@ -14,7 +14,7 @@ public class GlassClientMain {
         GlassLoader.getInstance().runHooks("client-initialize-pre");
 
         Launcher launcher = GlassLoader.getInstance().getLauncher();
-        launcher.setTarget("com.github.glassmc.loader.client.ClientWrapper");
+        launcher.setTarget("io.github.glassmc.loader.client.ClientWrapper");
         launcher.addArguments(args);
         launcher.launch();
     }

@@ -1,4 +1,4 @@
-package com.github.glassmc.loader.launch;
+package io.github.glassmc.loader.launch;
 
 import org.apache.commons.io.IOUtils;
 

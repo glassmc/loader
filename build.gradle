@@ -22,7 +22,7 @@ test {
 publishing {
     publications {
         maven(MavenPublication) {
-            groupId = 'com.github.glassmc'
+            groupId = 'io.github.glassmc'
             artifactId = 'loader'
             version = '0.0.1'
 
