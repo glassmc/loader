@@ -8,7 +8,7 @@ repositories {
 
 dependencies {
     implementation 'commons-io:commons-io:2.4'
-    implementation 'org.json:json:20210307'
+    implementation 'com.moandjiezana.toml:toml4j:0.7.2'
 
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.7.2'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.7.2'
