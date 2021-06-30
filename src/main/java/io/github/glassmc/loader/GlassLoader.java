@@ -139,7 +139,7 @@ public class GlassLoader {
     private ShardInfo parseShardInfo(String shardInfoText, String overrideID) {
         Toml shardInfoTOML = new Toml().read(shardInfoText);
 
-        Toml infoTOML = shardInfoTOML.getTable("info");
+        Toml infoTOML = shardInfoTOML.contains("info") ? shardInfoTOML.getTable("info") : new Toml();
         String id = infoTOML.contains("id") ? infoTOML.getString("id") : overrideID;
         String version = infoTOML.contains("version") ? infoTOML.getString("version") : null;
         ShardSpecification specification = new ShardSpecification(id, version);
@@ -168,7 +168,7 @@ public class GlassLoader {
             dependencies.add(new ShardSpecification(dependencyID, dependencyVersion));
         }
 
-        List<String> implementationsList = shardInfoTOML.contains("implementations") ? shardInfoTOML.getList("implementations") : new ArrayList<>();
+        List<String> implementationsList = infoTOML.contains("implementations") ? infoTOML.getList("implementations") : new ArrayList<>();
         List<ShardInfo> implementations = new ArrayList<>();
         for(String implementationID : implementationsList) {
             InputStream shardInfoStream = GlassLoader.class.getClassLoader().getResourceAsStream("glass/" + id.replace("-", "/") + "/" + implementationID + "/info.toml");
