@@ -52,18 +52,21 @@ public class GlassLoader {
 
         List<ShardSpecification> shards = new ArrayList<>();
         try {
-            List<String> resources = IOUtils.readLines(Objects.requireNonNull(classLoader.getResourceAsStream("glass/")), Charsets.UTF_8);
+            InputStream glass = classLoader.getResourceAsStream("glass/");
+            if(glass != null) {
+                List<String> resources = IOUtils.readLines(glass, Charsets.UTF_8);
 
-            List<URL> shardInfoURLList = new ArrayList<>();
-            for(String resource : resources){
-                shardInfoURLList.add(classLoader.getResource("glass/" + resource + "/info.toml"));
-            }
+                List<URL> shardInfoURLList = new ArrayList<>();
+                for (String resource : resources) {
+                    shardInfoURLList.add(classLoader.getResource("glass/" + resource + "/info.toml"));
+                }
 
-            for(URL shardInfoURL : shardInfoURLList) {
-                InputStream shardInfoStream = shardInfoURL.openStream();
-                String shardInfoText = IOUtils.toString(shardInfoStream, StandardCharsets.UTF_8);
-                ShardSpecification shardSpecification = this.parseShardSpecification(shardInfoText);
-                shards.add(shardSpecification);
+                for (URL shardInfoURL : shardInfoURLList) {
+                    InputStream shardInfoStream = shardInfoURL.openStream();
+                    String shardInfoText = IOUtils.toString(shardInfoStream, StandardCharsets.UTF_8);
+                    ShardSpecification shardSpecification = this.parseShardSpecification(shardInfoText);
+                    shards.add(shardSpecification);
+                }
             }
         } catch(IOException e) {
             e.printStackTrace();
@@ -74,35 +77,38 @@ public class GlassLoader {
         List<ShardInfo> shardInfoList = new ArrayList<>();
 
         try {
-            List<String> resources = IOUtils.readLines(Objects.requireNonNull(classLoader.getResourceAsStream("glass/")), Charsets.UTF_8);
+            InputStream glass = classLoader.getResourceAsStream("glass/");
+            if(glass != null) {
+                List<String> resources = IOUtils.readLines(glass, Charsets.UTF_8);
 
-            List<URL> shardInfoURLList = new ArrayList<>();
-            for(String resource : resources){
-                shardInfoURLList.add(classLoader.getResource("glass/" + resource + "/info.toml"));
-            }
+                List<URL> shardInfoURLList = new ArrayList<>();
+                for (String resource : resources) {
+                    shardInfoURLList.add(classLoader.getResource("glass/" + resource + "/info.toml"));
+                }
 
-            for(URL shardInfoURL : shardInfoURLList) {
-                InputStream shardInfoStream = shardInfoURL.openStream();
-                String shardInfoText = IOUtils.toString(shardInfoStream, StandardCharsets.UTF_8);
-                ShardInfo shardInfo = this.parseShardInfo(shardInfoText, null);
+                for (URL shardInfoURL : shardInfoURLList) {
+                    InputStream shardInfoStream = shardInfoURL.openStream();
+                    String shardInfoText = IOUtils.toString(shardInfoStream, StandardCharsets.UTF_8);
+                    ShardInfo shardInfo = this.parseShardInfo(shardInfoText, null);
 
-                boolean satisfied = true;
-                for(ShardSpecification dependency : shardInfo.getDependencies()) {
-                    boolean found = false;
-                    for(ShardSpecification specification : shards) {
-                        if(!dependency.isSatisfied(specification)) {
-                            found = true;
+                    boolean satisfied = true;
+                    for (ShardSpecification dependency : shardInfo.getDependencies()) {
+                        boolean found = false;
+                        for (ShardSpecification specification : shards) {
+                            if (!dependency.isSatisfied(specification)) {
+                                found = true;
+                            }
+                        }
+
+                        if (!found) {
+                            satisfied = false;
                         }
                     }
 
-                    if(!found) {
-                        satisfied = false;
+                    if (satisfied) {
+                        shardInfoList.add(shardInfo);
+                        this.cleanImplementations(shards, shardInfo);
                     }
-                }
-
-                if(satisfied) {
-                    shardInfoList.add(shardInfo);
-                    this.cleanImplementations(shards, shardInfo);
                 }
             }
         } catch(IOException e) {
@@ -136,6 +142,7 @@ public class GlassLoader {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private ShardInfo parseShardInfo(String shardInfoText, String overrideID) {
         Toml shardInfoTOML = new Toml().read(shardInfoText);
 

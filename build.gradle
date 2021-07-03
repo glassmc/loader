@@ -1,6 +1,23 @@
+buildscript {
+    repositories {
+        mavenCentral()
+        maven {
+            url = 'https://jitpack.io/'
+        }
+    }
+
+    dependencies {
+        classpath 'com.github.glassmc:kiln:a8c38d1cfe'
+    }
+}
+
 plugins {
     id 'java'
 }
+
+apply plugin: 'kiln-main'
+
+sourceCompatibility = targetCompatibility = 1.8
 
 repositories {
     mavenCentral()
