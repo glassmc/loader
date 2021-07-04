@@ -35,8 +35,10 @@ public class GlassLoader {
     }
 
     public void appendExternalShards() {
-        for(File shard : Objects.requireNonNull(this.shardsFile.listFiles())) {
-            this.appendShard(shard);
+        if(this.shardsFile.exists()) {
+            for (File shard : Objects.requireNonNull(this.shardsFile.listFiles())) {
+                this.appendShard(shard);
+            }
         }
     }
 
