@@ -242,4 +242,12 @@ public class GlassLoader {
         return interfaceClass.cast(this.interfaces.get(interfaceClass));
     }
 
+    public List<ShardSpecification> getRegisteredShards() {
+        return registeredShards;
+    }
+
+    public List<ShardInfo> getShards() {
+        return shards;
+    }
+
 }
