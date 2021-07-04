@@ -2,16 +2,14 @@ package io.github.glassmc.loader;
 
 import com.github.jezza.Toml;
 import com.github.jezza.TomlTable;
-import io.github.glassmc.loader.launch.Launcher;
-import org.apache.commons.io.IOUtils;
+import io.github.glassmc.loader.launch.GlassClassLoader;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.StringReader;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
+import java.net.MalformedURLException;
 import java.util.*;
-import java.util.stream.Collectors;
+import java.util.jar.JarFile;
 
 public class GlassLoader {
 
@@ -21,9 +19,12 @@ public class GlassLoader {
         return INSTANCE;
     }
 
-    private final Launcher launcher = new Launcher();
+    private final File shardsFile = new File("shards");
 
-    private final List<ShardSpecification> virtualShards = new ArrayList<>();
+    private final List<ShardSpecification> registeredShards = new ArrayList<>();
+    private final List<ShardInfo> shards = new ArrayList<>();
+
+    private final Map<String, List<Map.Entry<ShardInfo, Class<? extends Listener>>>> listeners = new HashMap<>();
     private final List<Object> apis = new ArrayList<>();
     private final Map<Class<?>, Object> interfaces = new HashMap<>();
 
@@ -31,178 +32,187 @@ public class GlassLoader {
         this.registerVirtualShard(new ShardSpecification("loader", "0.0.1"));
     }
 
-    public void runHooks(String hook) {
-        List<ShardInfo> shardInfoComplete = this.collectShardInfo();
-        List<ShardInfo> shardInfoFiltered = shardInfoComplete.stream()
-                .filter(shardInfo -> shardInfo.getListeners().containsKey(hook)).collect(Collectors.toList());
+    public void registerAllShards() {
+        for(File shard : Objects.requireNonNull(this.shardsFile.listFiles())) {
+            this.registerShard(shard);
+        }
+    }
 
-        for(ShardInfo shardInfo : shardInfoFiltered) {
-            for(Class<?> listenerClass : shardInfo.getListeners().get(hook)) {
-                try {
-                    Listener listener = (Listener) listenerClass.newInstance();
-                    listener.run();
-                } catch (InstantiationException | IllegalAccessException e) {
-                    e.printStackTrace();
-                }
+    private void registerShard(File shardFile) {
+        try {
+            JarFile shardJARFile = new JarFile(shardFile);
+            this.registeredShards.add(this.parseShardSpecification(shardJARFile));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void loadShards() {
+        for(File shard : Objects.requireNonNull(this.shardsFile.listFiles())) {
+            this.loadShard(shard);
+        }
+    }
+
+    public void loadShard(File shardFile) {
+        GlassClassLoader shardLoader = (GlassClassLoader) GlassLoader.class.getClassLoader();
+        try {
+            shardLoader.addURL(shardFile.toURI().toURL());
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+        }
+
+        try {
+            JarFile shardJARFile = new JarFile(shardFile);
+            ShardInfo shardInfo = this.loadShardInfo(shardJARFile, "glass/info.toml", null);
+            if(shardInfo != null) {
+                this.shards.add(shardInfo);
+
+                this.registerListeners(shardInfo);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void registerListeners(ShardInfo shardInfo) {
+        for(ShardInfo implementation : shardInfo.getImplementations()) {
+            this.registerListeners(implementation);
+        }
+
+        Map<String, List<Class<? extends Listener>>> listeners = shardInfo.getListeners();
+        for(String hook : listeners.keySet()) {
+            for(Class<? extends Listener> listener : listeners.get(hook)) {
+                this.listeners.computeIfAbsent(hook, k -> new ArrayList<>()).add(new AbstractMap.SimpleEntry<>(shardInfo, listener));
             }
         }
     }
 
-    private List<ShardInfo> collectShardInfo() {
-        ClassLoader classLoader = GlassLoader.class.getClassLoader();
+    public void runHooks(String hook) {
+        List<ShardSpecification> executedListeners = new ArrayList<>();
+        List<Map.Entry<ShardInfo, Class<? extends Listener>>> listeners = new ArrayList<>(this.listeners.get(hook));
 
-        List<ShardSpecification> shards = new ArrayList<>();
-        try {
-            List<URL> shardInfoURLList = new ArrayList<>();
-
-            Enumeration<URL> shardInfos = classLoader.getResources("glass/info.toml");
-            while(shardInfos.hasMoreElements()) {
-                URL shardInfo = shardInfos.nextElement();
-                shardInfoURLList.add(shardInfo);
-            }
-
-            for(URL shardInfoURL : shardInfoURLList) {
-                InputStream shardInfoStream = shardInfoURL.openStream();
-                String shardInfoText = IOUtils.toString(shardInfoStream, StandardCharsets.UTF_8);
-                ShardSpecification shardSpecification = this.parseShardSpecification(shardInfoText);
-                shards.add(shardSpecification);
-            }
-        } catch(IOException e) {
-            e.printStackTrace();
-        }
-
-        shards.addAll(this.virtualShards);
-
-        List<ShardInfo> shardInfoList = new ArrayList<>();
-
-        try {
-            List<URL> shardInfoURLList = new ArrayList<>();
-
-            Enumeration<URL> shardInfos = classLoader.getResources("glass/info.toml");
-            while(shardInfos.hasMoreElements()) {
-                URL shardInfo = shardInfos.nextElement();
-                shardInfoURLList.add(shardInfo);
-            }
-
-            for(URL shardInfoURL : shardInfoURLList) {
-                InputStream shardInfoStream = shardInfoURL.openStream();
-                String shardInfoText = IOUtils.toString(shardInfoStream, StandardCharsets.UTF_8);
-                ShardInfo shardInfo = this.parseShardInfo(shardInfoText, null);
-
+        int i = 0;
+        while(i < listeners.size()) {
+            Map.Entry<ShardInfo, Class<? extends Listener>> listener = listeners.get(i);
+            boolean canLoad = true;
+            for(ShardSpecification dependency : listener.getKey().getDependencies()) {
                 boolean satisfied = true;
-                for(ShardSpecification dependency : shardInfo.getDependencies()) {
-                    boolean found = false;
-                    for(ShardSpecification specification : shards) {
-                        if(!dependency.isSatisfied(specification)) {
-                            found = true;
-                        }
-                    }
-
-                    if (!found) {
+                for(Map.Entry<ShardInfo, Class<? extends Listener>> listener1 : listeners) {
+                    if(dependency.isSatisfied(listener1.getKey().getSpecification())) {
                         satisfied = false;
                     }
                 }
 
-                if(satisfied) {
-                    shardInfoList.add(shardInfo);
-                    this.cleanImplementations(shards, shardInfo);
-                }
-            }
-        } catch(IOException e) {
-            e.printStackTrace();
-        }
-
-        return shardInfoList;
-    }
-
-    private void cleanImplementations(List<ShardSpecification> shards, ShardInfo shardInfo) {
-        for(ShardInfo implementation : new ArrayList<>(shardInfo.getImplementations())) {
-            boolean satisfied = true;
-            for(ShardSpecification dependency : implementation.getDependencies()) {
-                boolean found = false;
-                for(ShardSpecification specification : shards) {
+                for(ShardSpecification specification : executedListeners) {
                     if(dependency.isSatisfied(specification)) {
-                        found = true;
+                        satisfied = true;
                     }
                 }
-
-                if(!found) {
-                    satisfied = false;
+                if(!satisfied) {
+                    canLoad = false;
+                    break;
                 }
             }
 
-            if(!satisfied) {
-                shardInfo.getImplementations().remove(implementation);
+            if(canLoad) {
+                executedListeners.add(listener.getKey().getSpecification());
+                try {
+                    Listener listener1 = listener.getValue().newInstance();
+                    listener1.run();
+                } catch (InstantiationException | IllegalAccessException e) {
+                    e.printStackTrace();
+                }
+                i++;
             } else {
-                this.cleanImplementations(shards, implementation);
+                listeners.remove(listener);
+                listeners.add(listener);
             }
         }
     }
 
     @SuppressWarnings("unchecked")
-    private ShardInfo parseShardInfo(String shardInfoText, String overrideID) throws IOException {
-        TomlTable shardInfoTOML = Toml.from(new StringReader(shardInfoText));
+    private ShardInfo loadShardInfo(JarFile shardJARFile, String entryName, String overrideID) {
+        try {
+            InputStream shardInfoStream = shardJARFile.getInputStream(shardJARFile.getJarEntry(entryName));
+            TomlTable shardInfoTOML = Toml.from(shardInfoStream);
 
-        TomlTable infoTOML = (TomlTable) shardInfoTOML.getOrDefault("info", new TomlTable());
-        String id = (String) infoTOML.getOrDefault("id", overrideID);
-        String version = (String) infoTOML.getOrDefault("version", null);
-        ShardSpecification specification = new ShardSpecification(id, version);
+            String id = (String) shardInfoTOML.getOrDefault("id", overrideID);
+            String version = (String) shardInfoTOML.getOrDefault("version", null);
+            ShardSpecification specification = new ShardSpecification(id, version);
 
-        TomlTable listenersTOML = (TomlTable) shardInfoTOML.getOrDefault("listeners", new TomlTable());
-        Map<String, List<Class<? extends Listener>>> listeners = new HashMap<>();
-        for(Map.Entry<String, Object> entry : listenersTOML.entrySet()) {
-            String hook = entry.getKey();
-            listeners.put(hook, new ArrayList<>());
-            List<String> hookListeners = (List<String>) listenersTOML.get(hook);
-            for(String hookListener : hookListeners) {
-                try {
-                    Class<? extends Listener> listenerClass = (Class<? extends Listener>) Class.forName((hookListener));
-                    listeners.get(hook).add(listenerClass);
-                } catch (ClassNotFoundException e) {
-                    e.printStackTrace();
+            TomlTable listenersTOML = (TomlTable) shardInfoTOML.getOrDefault("listeners", new TomlTable());
+            Map<String, List<Class<? extends Listener>>> listeners = new HashMap<>();
+            for(Map.Entry<String, Object> entry : listenersTOML.entrySet()) {
+                String hook = entry.getKey();
+                listeners.put(hook, new ArrayList<>());
+                List<String> hookListeners = (List<String>) listenersTOML.get(hook);
+                for(String hookListener : hookListeners) {
+                    try {
+                        Class<? extends Listener> listenerClass = (Class<? extends Listener>) Class.forName((hookListener));
+                        listeners.get(hook).add(listenerClass);
+                    } catch (ClassNotFoundException e) {
+                        e.printStackTrace();
+                    }
                 }
             }
-        }
 
-        TomlTable dependenciesTOML = (TomlTable) shardInfoTOML.getOrDefault("dependencies", new TomlTable());
-        List<ShardSpecification> dependencies = new ArrayList<>();
-        for(Map.Entry<String, Object> entry : dependenciesTOML.entrySet()) {
-            String dependencyID = entry.getKey();
-            String dependencyVersion = (String) dependenciesTOML.get(dependencyID);
-            dependencies.add(new ShardSpecification(dependencyID, dependencyVersion));
-        }
-
-        List<String> implementationsList = (List<String>) infoTOML.getOrDefault("implementations", new ArrayList<>());
-        List<ShardInfo> implementations = new ArrayList<>();
-        for(String implementationID : implementationsList) {
-            int index = id.indexOf("-") + 1;
-            if(index == 0) {
-                index = id.length();
+            TomlTable dependenciesTOML = (TomlTable) shardInfoTOML.getOrDefault("dependencies", new TomlTable());
+            List<ShardSpecification> dependencies = new ArrayList<>();
+            for(Map.Entry<String, Object> entry : dependenciesTOML.entrySet()) {
+                String dependencyID = entry.getKey();
+                String dependencyVersion = (String) dependenciesTOML.get(dependencyID);
+                dependencies.add(new ShardSpecification(dependencyID, dependencyVersion));
             }
-            InputStream shardInfoStream = GlassLoader.class.getClassLoader().getResourceAsStream("glass" + (!id.substring(index).isEmpty() ? "/" : "") + id.substring(index).replace("-", "/") + "/" + implementationID + "/info.toml");
-            try {
-                if (shardInfoStream != null) {
-                    String implementationInfoText = IOUtils.toString(shardInfoStream, StandardCharsets.UTF_8);
-                    implementations.add(this.parseShardInfo(implementationInfoText, id + "-" + implementationID));
+
+            List<String> implementationsList = (List<String>) shardInfoTOML.getOrDefault("implementations", new ArrayList<>());
+            List<ShardInfo> implementations = new ArrayList<>();
+            for(String implementationID : implementationsList) {
+                int index = id.indexOf("-") + 1;
+                if(index == 0) {
+                    index = id.length();
                 }
-            } catch (IOException e) {
-                e.printStackTrace();
+                ShardInfo shardInfo = this.loadShardInfo(shardJARFile, "glass" + (!id.substring(index).isEmpty() ? "/" : "") + id.substring(index).replace("-", "/") + "/" + implementationID + "/info.toml", id + "-" + implementationID);
+                if(shardInfo != null) {
+                    implementations.add(shardInfo);
+                }
             }
-        }
 
-        return new ShardInfo(specification, listeners, dependencies, implementations);
+            for(ShardSpecification dependency : dependencies) {
+                boolean satisfied = false;
+                for(ShardSpecification shard : this.registeredShards) {
+                    if(dependency.isSatisfied(shard)) {
+                        satisfied = true;
+                    }
+                }
+
+                if(!satisfied) {
+                    return null;
+                }
+            }
+
+            return new ShardInfo(specification, listeners, dependencies, implementations);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
-    private ShardSpecification parseShardSpecification(String shardInfoText) throws IOException {
-        TomlTable shardInfoTOML = Toml.from(new StringReader(shardInfoText));
+    private ShardSpecification parseShardSpecification(JarFile shardJARFile) {
+        try {
+            InputStream shardInfoStream = shardJARFile.getInputStream(shardJARFile.getJarEntry("glass/info.toml"));
+            TomlTable shardInfoTOML = Toml.from(shardInfoStream);
 
-        String id = (String) shardInfoTOML.get("id");
-        String version = (String) shardInfoTOML.get("version");
-        return new ShardSpecification(id, version);
+            String id = (String) shardInfoTOML.get("id");
+            String version = (String) shardInfoTOML.getOrDefault("version", null);
+            return new ShardSpecification(id, version);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     public void registerVirtualShard(ShardSpecification specification) {
-        this.virtualShards.add(specification);
+        this.registeredShards.add(specification);
     }
 
     public void registerAPI(Object api) {
@@ -224,10 +234,6 @@ public class GlassLoader {
 
     public <T> T getInterface(Class<T> interfaceClass) {
         return interfaceClass.cast(this.interfaces.get(interfaceClass));
-    }
-
-    public Launcher getLauncher() {
-        return launcher;
     }
 
 }

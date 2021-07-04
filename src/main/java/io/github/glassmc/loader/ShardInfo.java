@@ -12,11 +12,17 @@ public class ShardInfo {
     private final List<ShardSpecification> dependencies;
     private final List<ShardInfo> implementations;
 
+    private ShardInfo parent;
+
     public ShardInfo(ShardSpecification specification, Map<String, List<Class<? extends Listener>>> listeners, List<ShardSpecification> dependencies, List<ShardInfo> implementations) {
         this.specification = specification;
         this.listeners = listeners;
         this.dependencies = dependencies;
         this.implementations = implementations;
+
+        for(ShardInfo implementation : this.implementations) {
+            implementation.setParent(this);
+        }
     }
 
     public ShardSpecification getSpecification() {
@@ -24,14 +30,7 @@ public class ShardInfo {
     }
 
     public Map<String, List<Class<? extends Listener>>> getListeners() {
-        Map<String, List<Class<? extends Listener>>> listeners = new LinkedHashMap<>();
-        for(ShardInfo implementation : this.getImplementations()) {
-            listeners.putAll(implementation.getListeners());
-        }
-        for(String hook : this.listeners.keySet()) {
-            listeners.computeIfAbsent(hook, k -> new ArrayList<>()).addAll(this.listeners.get(hook));
-        }
-        return listeners;
+        return this.listeners;
     }
 
     public List<ShardSpecification> getDependencies() {
@@ -42,4 +41,11 @@ public class ShardInfo {
         return this.implementations;
     }
 
+    public void setParent(ShardInfo parent) {
+        this.parent = parent;
+    }
+
+    public ShardInfo getParent() {
+        return parent;
+    }
 }

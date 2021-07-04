@@ -12,15 +12,7 @@ public class ClientWrapper {
     public static void main(String[] args) {
         GlassLoader.getInstance().registerVirtualShard(new ShardSpecification("client", args[Arrays.asList(args).indexOf("--version") + 1]));
 
-        GlassLoader.getInstance().runHooks("client-initialize");
 
-        try {
-            Class<?> mainClass = Class.forName("net.minecraft.client.main.Main");
-            Method mainMethod = mainClass.getMethod("main", String[].class);
-            mainMethod.invoke(null, (Object) args);
-        } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-            e.printStackTrace();
-        }
     }
 
 }

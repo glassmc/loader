@@ -1,4 +1,4 @@
-package io.github.glassmc.loader;
+package io.github.glassmc.loader.launch;
 
 import org.apache.commons.io.IOUtils;
 
@@ -12,21 +12,25 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.*;
 
-public class ShardLoader extends URLClassLoader {
+public class GlassClassLoader extends URLClassLoader {
 
-    private static ShardLoader instance;
+    private static GlassClassLoader instance;
 
-    public static ShardLoader getInstance() {
+    public static GlassClassLoader getInstance() {
         return instance;
     }
 
-    private final ClassLoader parent = ShardLoader.class.getClassLoader();
+    private final ClassLoader parent = GlassClassLoader.class.getClassLoader();
 
     private final Map<String, Class<?>> cache = new HashMap<>();
 
-    public ShardLoader() {
+    public GlassClassLoader() {
         super(getLoaderURLs(), null);
         instance = this;
+    }
+
+    public void addURL(URL url) {
+        super.addURL(url);
     }
 
     @Override
@@ -34,6 +38,7 @@ public class ShardLoader extends URLClassLoader {
         if(name.startsWith("java.") || name.startsWith("jdk.") || name.startsWith("sun.") || name.startsWith("com.sun.") || name.startsWith("javax.") || name.startsWith("org.xml.") || name.startsWith("org.w3c.")) {
             return this.parent.loadClass(name);
         }
+
         try {
             Method method = ClassLoader.class.getDeclaredMethod("findLoadedClass", String.class);
             method.setAccessible(true);

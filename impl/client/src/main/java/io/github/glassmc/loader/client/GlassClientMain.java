@@ -1,6 +1,6 @@
 package io.github.glassmc.loader.client;
 
-import io.github.glassmc.loader.ShardLoader;
+import io.github.glassmc.loader.launch.GlassClassLoader;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -8,7 +8,7 @@ import java.lang.reflect.Method;
 public class GlassClientMain {
 
     public static void main(String[] args) {
-        ClassLoader classLoader = new ShardLoader();
+        ClassLoader classLoader = new GlassClassLoader();
         try {
             Class<?> wrapperClass = classLoader.loadClass("io.github.glassmc.loader.client.GlassClientLauncher");
             Method mainMethod = wrapperClass.getMethod("main", String[].class);
