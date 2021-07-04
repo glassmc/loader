@@ -86,8 +86,11 @@ public class ShardLoader extends URLClassLoader {
         File shardDirectory = new File("shards");
 
         try {
-            for(File file : Objects.requireNonNull(shardDirectory.listFiles())) {
-                urls.add(file.toURI().toURL());
+            File[] files = shardDirectory.listFiles();
+            if(files != null) {
+                for (File file : files) {
+                    urls.add(file.toURI().toURL());
+                }
             }
         } catch(MalformedURLException e) {
             e.printStackTrace();
