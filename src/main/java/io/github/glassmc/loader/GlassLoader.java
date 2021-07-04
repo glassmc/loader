@@ -3,13 +3,14 @@ package io.github.glassmc.loader;
 import com.github.jezza.Toml;
 import com.github.jezza.TomlTable;
 import io.github.glassmc.loader.launch.GlassClassLoader;
+import org.apache.commons.io.IOUtils;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.*;
-import java.util.jar.JarFile;
 
 public class GlassLoader {
 
@@ -21,6 +22,7 @@ public class GlassLoader {
 
     private final File shardsFile = new File("shards");
 
+    private final List<ShardSpecification> virtualShards = new ArrayList<>();
     private final List<ShardSpecification> registeredShards = new ArrayList<>();
     private final List<ShardInfo> shards = new ArrayList<>();
 
@@ -32,42 +34,48 @@ public class GlassLoader {
         this.registerVirtualShard(new ShardSpecification("loader", "0.0.1"));
     }
 
-    public void registerAllShards() {
+    public void appendExternalShards() {
         for(File shard : Objects.requireNonNull(this.shardsFile.listFiles())) {
-            this.registerShard(shard);
+            this.appendShard(shard);
         }
     }
 
-    private void registerShard(File shardFile) {
+    public void appendShard(File shardFile) {
+        GlassClassLoader loader = (GlassClassLoader) GlassLoader.class.getClassLoader();
         try {
-            JarFile shardJARFile = new JarFile(shardFile);
-            this.registeredShards.add(this.parseShardSpecification(shardJARFile));
-        } catch (IOException e) {
+            loader.addURL(shardFile.toURI().toURL());
+        } catch (MalformedURLException e) {
             e.printStackTrace();
         }
     }
 
     public void loadShards() {
-        for(File shard : Objects.requireNonNull(this.shardsFile.listFiles())) {
-            this.loadShard(shard);
-        }
-    }
+        this.registeredShards.clear();
+        this.registeredShards.addAll(this.virtualShards);
+        this.shards.clear();
+        this.listeners.clear();
 
-    public void loadShard(File shardFile) {
-        GlassClassLoader shardLoader = (GlassClassLoader) GlassLoader.class.getClassLoader();
         try {
-            shardLoader.addURL(shardFile.toURI().toURL());
-        } catch (MalformedURLException e) {
+            Enumeration<URL> shardMetas = GlassLoader.class.getClassLoader().getResources("glass/shardMeta.txt");
+            while(shardMetas.hasMoreElements()) {
+                URL url = shardMetas.nextElement();
+                String shardID = IOUtils.toString(url.openStream());
+                this.registeredShards.add(this.loadShardSpecification("glass/" + shardID + "/info.toml"));
+            }
+        } catch (IOException e) {
             e.printStackTrace();
         }
 
         try {
-            JarFile shardJARFile = new JarFile(shardFile);
-            ShardInfo shardInfo = this.loadShardInfo(shardJARFile, "glass/info.toml", null);
-            if(shardInfo != null) {
-                this.shards.add(shardInfo);
-
-                this.registerListeners(shardInfo);
+            Enumeration<URL> shardMetas = GlassLoader.class.getClassLoader().getResources("glass/shardMeta.txt");
+            while(shardMetas.hasMoreElements()) {
+                URL url = shardMetas.nextElement();
+                String shardID = IOUtils.toString(url.openStream());
+                ShardInfo shardInfo = this.loadShardInfo("glass/" + shardID + "/info.toml", null);
+                if(shardInfo != null) {
+                    this.shards.add(shardInfo);
+                    this.registerListeners(shardInfo);
+                }
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -131,13 +139,13 @@ public class GlassLoader {
     }
 
     @SuppressWarnings("unchecked")
-    private ShardInfo loadShardInfo(JarFile shardJARFile, String entryName, String overrideID) {
+    private ShardInfo loadShardInfo(String path, String overrideID) {
         try {
-            InputStream shardInfoStream = shardJARFile.getInputStream(shardJARFile.getJarEntry(entryName));
-            TomlTable shardInfoTOML = Toml.from(shardInfoStream);
+            InputStream shardInfoStream = GlassLoader.class.getClassLoader().getResourceAsStream(path);
+            TomlTable shardInfoTOML = Toml.from(Objects.requireNonNull(shardInfoStream));
 
             String id = (String) shardInfoTOML.getOrDefault("id", overrideID);
-            String version = (String) shardInfoTOML.getOrDefault("version", null);
+            String version = (String) shardInfoTOML.get("version");
             ShardSpecification specification = new ShardSpecification(id, version);
 
             TomlTable listenersTOML = (TomlTable) shardInfoTOML.getOrDefault("listeners", new TomlTable());
@@ -167,11 +175,7 @@ public class GlassLoader {
             List<String> implementationsList = (List<String>) shardInfoTOML.getOrDefault("implementations", new ArrayList<>());
             List<ShardInfo> implementations = new ArrayList<>();
             for(String implementationID : implementationsList) {
-                int index = id.indexOf("-") + 1;
-                if(index == 0) {
-                    index = id.length();
-                }
-                ShardInfo shardInfo = this.loadShardInfo(shardJARFile, "glass" + (!id.substring(index).isEmpty() ? "/" : "") + id.substring(index).replace("-", "/") + "/" + implementationID + "/info.toml", id + "-" + implementationID);
+                ShardInfo shardInfo = this.loadShardInfo("glass/" + id.replace("-", "/") + "/" + implementationID + "/info.toml", id + "-" + implementationID);
                 if(shardInfo != null) {
                     implementations.add(shardInfo);
                 }
@@ -197,13 +201,13 @@ public class GlassLoader {
         return null;
     }
 
-    private ShardSpecification parseShardSpecification(JarFile shardJARFile) {
+    private ShardSpecification loadShardSpecification(String path) {
         try {
-            InputStream shardInfoStream = shardJARFile.getInputStream(shardJARFile.getJarEntry("glass/info.toml"));
-            TomlTable shardInfoTOML = Toml.from(shardInfoStream);
+            InputStream shardInfoStream = GlassLoader.class.getClassLoader().getResourceAsStream(path);
+            TomlTable shardInfoTOML = Toml.from(Objects.requireNonNull(shardInfoStream));
 
             String id = (String) shardInfoTOML.get("id");
-            String version = (String) shardInfoTOML.getOrDefault("version", null);
+            String version = (String) shardInfoTOML.get("version");
             return new ShardSpecification(id, version);
         } catch (IOException e) {
             e.printStackTrace();
@@ -212,7 +216,7 @@ public class GlassLoader {
     }
 
     public void registerVirtualShard(ShardSpecification specification) {
-        this.registeredShards.add(specification);
+        this.virtualShards.add(specification);
     }
 
     public void registerAPI(Object api) {
