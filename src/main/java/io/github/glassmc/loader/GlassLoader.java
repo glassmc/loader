@@ -1,12 +1,13 @@
 package io.github.glassmc.loader;
 
-import com.moandjiezana.toml.Toml;
+import com.github.jezza.Toml;
+import com.github.jezza.TomlTable;
 import io.github.glassmc.loader.launch.Launcher;
-import org.apache.commons.io.Charsets;
 import org.apache.commons.io.IOUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.StringReader;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -52,21 +53,19 @@ public class GlassLoader {
 
         List<ShardSpecification> shards = new ArrayList<>();
         try {
-            InputStream glass = classLoader.getResourceAsStream("glass/");
-            if(glass != null) {
-                List<String> resources = IOUtils.readLines(glass, Charsets.UTF_8);
+            List<URL> shardInfoURLList = new ArrayList<>();
 
-                List<URL> shardInfoURLList = new ArrayList<>();
-                for (String resource : resources) {
-                    shardInfoURLList.add(classLoader.getResource("glass/" + resource + "/info.toml"));
-                }
+            Enumeration<URL> shardInfos = classLoader.getResources("glass/info.toml");
+            while(shardInfos.hasMoreElements()) {
+                URL shardInfo = shardInfos.nextElement();
+                shardInfoURLList.add(shardInfo);
+            }
 
-                for (URL shardInfoURL : shardInfoURLList) {
-                    InputStream shardInfoStream = shardInfoURL.openStream();
-                    String shardInfoText = IOUtils.toString(shardInfoStream, StandardCharsets.UTF_8);
-                    ShardSpecification shardSpecification = this.parseShardSpecification(shardInfoText);
-                    shards.add(shardSpecification);
-                }
+            for(URL shardInfoURL : shardInfoURLList) {
+                InputStream shardInfoStream = shardInfoURL.openStream();
+                String shardInfoText = IOUtils.toString(shardInfoStream, StandardCharsets.UTF_8);
+                ShardSpecification shardSpecification = this.parseShardSpecification(shardInfoText);
+                shards.add(shardSpecification);
             }
         } catch(IOException e) {
             e.printStackTrace();
@@ -77,38 +76,36 @@ public class GlassLoader {
         List<ShardInfo> shardInfoList = new ArrayList<>();
 
         try {
-            InputStream glass = classLoader.getResourceAsStream("glass/");
-            if(glass != null) {
-                List<String> resources = IOUtils.readLines(glass, Charsets.UTF_8);
+            List<URL> shardInfoURLList = new ArrayList<>();
 
-                List<URL> shardInfoURLList = new ArrayList<>();
-                for (String resource : resources) {
-                    shardInfoURLList.add(classLoader.getResource("glass/" + resource + "/info.toml"));
+            Enumeration<URL> shardInfos = classLoader.getResources("glass/info.toml");
+            while(shardInfos.hasMoreElements()) {
+                URL shardInfo = shardInfos.nextElement();
+                shardInfoURLList.add(shardInfo);
+            }
+
+            for(URL shardInfoURL : shardInfoURLList) {
+                InputStream shardInfoStream = shardInfoURL.openStream();
+                String shardInfoText = IOUtils.toString(shardInfoStream, StandardCharsets.UTF_8);
+                ShardInfo shardInfo = this.parseShardInfo(shardInfoText, null);
+
+                boolean satisfied = true;
+                for(ShardSpecification dependency : shardInfo.getDependencies()) {
+                    boolean found = false;
+                    for(ShardSpecification specification : shards) {
+                        if(!dependency.isSatisfied(specification)) {
+                            found = true;
+                        }
+                    }
+
+                    if (!found) {
+                        satisfied = false;
+                    }
                 }
 
-                for (URL shardInfoURL : shardInfoURLList) {
-                    InputStream shardInfoStream = shardInfoURL.openStream();
-                    String shardInfoText = IOUtils.toString(shardInfoStream, StandardCharsets.UTF_8);
-                    ShardInfo shardInfo = this.parseShardInfo(shardInfoText, null);
-
-                    boolean satisfied = true;
-                    for (ShardSpecification dependency : shardInfo.getDependencies()) {
-                        boolean found = false;
-                        for (ShardSpecification specification : shards) {
-                            if (!dependency.isSatisfied(specification)) {
-                                found = true;
-                            }
-                        }
-
-                        if (!found) {
-                            satisfied = false;
-                        }
-                    }
-
-                    if (satisfied) {
-                        shardInfoList.add(shardInfo);
-                        this.cleanImplementations(shards, shardInfo);
-                    }
+                if(satisfied) {
+                    shardInfoList.add(shardInfo);
+                    this.cleanImplementations(shards, shardInfo);
                 }
             }
         } catch(IOException e) {
@@ -120,7 +117,7 @@ public class GlassLoader {
 
     private void cleanImplementations(List<ShardSpecification> shards, ShardInfo shardInfo) {
         for(ShardInfo implementation : new ArrayList<>(shardInfo.getImplementations())) {
-            boolean satisfied1 = true;
+            boolean satisfied = true;
             for(ShardSpecification dependency : implementation.getDependencies()) {
                 boolean found = false;
                 for(ShardSpecification specification : shards) {
@@ -130,11 +127,11 @@ public class GlassLoader {
                 }
 
                 if(!found) {
-                    satisfied1 = false;
+                    satisfied = false;
                 }
             }
 
-            if(!satisfied1) {
+            if(!satisfied) {
                 shardInfo.getImplementations().remove(implementation);
             } else {
                 this.cleanImplementations(shards, implementation);
@@ -143,20 +140,20 @@ public class GlassLoader {
     }
 
     @SuppressWarnings("unchecked")
-    private ShardInfo parseShardInfo(String shardInfoText, String overrideID) {
-        Toml shardInfoTOML = new Toml().read(shardInfoText);
+    private ShardInfo parseShardInfo(String shardInfoText, String overrideID) throws IOException {
+        TomlTable shardInfoTOML = Toml.from(new StringReader(shardInfoText));
 
-        Toml infoTOML = shardInfoTOML.contains("info") ? shardInfoTOML.getTable("info") : new Toml();
-        String id = infoTOML.contains("id") ? infoTOML.getString("id") : overrideID;
-        String version = infoTOML.contains("version") ? infoTOML.getString("version") : null;
+        TomlTable infoTOML = (TomlTable) shardInfoTOML.getOrDefault("info", new TomlTable());
+        String id = (String) infoTOML.getOrDefault("id", overrideID);
+        String version = (String) infoTOML.getOrDefault("version", null);
         ShardSpecification specification = new ShardSpecification(id, version);
 
-        Toml listenersTOML = shardInfoTOML.contains("listeners") ? shardInfoTOML.getTable("listeners") : new Toml();
+        TomlTable listenersTOML = (TomlTable) shardInfoTOML.getOrDefault("listeners", new TomlTable());
         Map<String, List<Class<? extends Listener>>> listeners = new HashMap<>();
         for(Map.Entry<String, Object> entry : listenersTOML.entrySet()) {
             String hook = entry.getKey();
             listeners.put(hook, new ArrayList<>());
-            List<String> hookListeners = listenersTOML.getList(hook);
+            List<String> hookListeners = (List<String>) listenersTOML.get(hook);
             for(String hookListener : hookListeners) {
                 try {
                     Class<? extends Listener> listenerClass = (Class<? extends Listener>) Class.forName((hookListener));
@@ -167,18 +164,22 @@ public class GlassLoader {
             }
         }
 
-        Toml dependenciesTOML = shardInfoTOML.contains("dependencies") ? shardInfoTOML.getTable("dependencies") : new Toml();
+        TomlTable dependenciesTOML = (TomlTable) shardInfoTOML.getOrDefault("dependencies", new TomlTable());
         List<ShardSpecification> dependencies = new ArrayList<>();
         for(Map.Entry<String, Object> entry : dependenciesTOML.entrySet()) {
             String dependencyID = entry.getKey();
-            String dependencyVersion = dependenciesTOML.getString(dependencyID);
+            String dependencyVersion = (String) dependenciesTOML.get(dependencyID);
             dependencies.add(new ShardSpecification(dependencyID, dependencyVersion));
         }
 
-        List<String> implementationsList = infoTOML.contains("implementations") ? infoTOML.getList("implementations") : new ArrayList<>();
+        List<String> implementationsList = (List<String>) infoTOML.getOrDefault("implementations", new ArrayList<>());
         List<ShardInfo> implementations = new ArrayList<>();
         for(String implementationID : implementationsList) {
-            InputStream shardInfoStream = GlassLoader.class.getClassLoader().getResourceAsStream("glass/" + id.replace("-", "/") + "/" + implementationID + "/info.toml");
+            int index = id.indexOf("-") + 1;
+            if(index == 0) {
+                index = id.length();
+            }
+            InputStream shardInfoStream = GlassLoader.class.getClassLoader().getResourceAsStream("glass" + (!id.substring(index).isEmpty() ? "/" : "") + id.substring(index).replace("-", "/") + "/" + implementationID + "/info.toml");
             try {
                 if (shardInfoStream != null) {
                     String implementationInfoText = IOUtils.toString(shardInfoStream, StandardCharsets.UTF_8);
@@ -192,11 +193,11 @@ public class GlassLoader {
         return new ShardInfo(specification, listeners, dependencies, implementations);
     }
 
-    private ShardSpecification parseShardSpecification(String shardInfoText) {
-        Toml shardInfoTOML = new Toml().read(shardInfoText);
+    private ShardSpecification parseShardSpecification(String shardInfoText) throws IOException {
+        TomlTable shardInfoTOML = Toml.from(new StringReader(shardInfoText));
 
-        String id = shardInfoTOML.getString("id");
-        String version = shardInfoTOML.getString("version");
+        String id = (String) shardInfoTOML.get("id");
+        String version = (String) shardInfoTOML.get("version");
         return new ShardSpecification(id, version);
     }
 

@@ -1,22 +1,21 @@
 package io.github.glassmc.loader.client;
 
-import io.github.glassmc.loader.GlassLoader;
-import io.github.glassmc.loader.ShardSpecification;
-import io.github.glassmc.loader.launch.Launcher;
+import io.github.glassmc.loader.ShardLoader;
 
-import java.util.Arrays;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 
 public class GlassClientMain {
 
     public static void main(String[] args) {
-        GlassLoader.getInstance().registerVirtualShard(new ShardSpecification("client", args[Arrays.asList(args).indexOf("--version") + 1]));
-
-        GlassLoader.getInstance().runHooks("client-initialize-pre");
-
-        Launcher launcher = GlassLoader.getInstance().getLauncher();
-        launcher.setTarget("io.github.glassmc.loader.client.ClientWrapper");
-        launcher.addArguments(args);
-        launcher.launch();
+        ClassLoader classLoader = new ShardLoader();
+        try {
+            Class<?> wrapperClass = classLoader.loadClass("io.github.glassmc.loader.client.GlassClientLauncher");
+            Method mainMethod = wrapperClass.getMethod("main", String[].class);
+            mainMethod.invoke(null, (Object) args);
+        } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+            e.printStackTrace();
+        }
     }
 
 }
