@@ -101,4 +101,8 @@ public class GlassClassLoader extends URLClassLoader {
         return urls.toArray(new URL[0]);
     }
 
+    public List<ITransformer> getTransformers() {
+        return transformers;
+    }
+
 }

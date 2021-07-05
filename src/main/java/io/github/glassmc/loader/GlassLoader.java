@@ -263,7 +263,7 @@ public class GlassLoader {
     }
 
     public void registerTransformer(ITransformer transformer) {
-        //this.classLoader.
+        this.classLoader.getTransformers().add(transformer);
     }
 
     public List<ShardSpecification> getRegisteredShards() {
