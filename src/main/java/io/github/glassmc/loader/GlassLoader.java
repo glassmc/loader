@@ -2,7 +2,8 @@ package io.github.glassmc.loader;
 
 import com.github.jezza.Toml;
 import com.github.jezza.TomlTable;
-import io.github.glassmc.loader.launch.GlassClassLoader;
+import io.github.glassmc.loader.loader.GlassClassLoader;
+import io.github.glassmc.loader.loader.ITransformer;
 import org.apache.commons.io.IOUtils;
 
 import java.io.File;
@@ -22,6 +23,7 @@ public class GlassLoader {
     }
 
     private final File shardsFile = new File("shards");
+    private final GlassClassLoader classLoader = (GlassClassLoader) GlassLoader.class.getClassLoader();
 
     private final List<ShardSpecification> registeredShards = new ArrayList<>();
     private final List<ShardInfo> shards = new ArrayList<>();
@@ -43,9 +45,8 @@ public class GlassLoader {
     }
 
     public void appendShard(File shardFile) {
-        GlassClassLoader loader = (GlassClassLoader) GlassLoader.class.getClassLoader();
         try {
-            loader.addURL(shardFile.toURI().toURL());
+            this.classLoader.addURL(shardFile.toURI().toURL());
         } catch (MalformedURLException e) {
             e.printStackTrace();
         }
@@ -53,7 +54,7 @@ public class GlassLoader {
 
     public void loadShards() {
         try {
-            Enumeration<URL> shardMetas = GlassLoader.class.getClassLoader().getResources("glass/shardMeta.txt");
+            Enumeration<URL> shardMetas = this.classLoader.getResources("glass/shardMeta.txt");
             while(shardMetas.hasMoreElements()) {
                 URL url = shardMetas.nextElement();
                 String shardID = IOUtils.toString(url.openStream());
@@ -68,7 +69,7 @@ public class GlassLoader {
         }
 
         try {
-            Enumeration<URL> shardMetas = GlassLoader.class.getClassLoader().getResources("glass/shardMeta.txt");
+            Enumeration<URL> shardMetas = this.classLoader.getResources("glass/shardMeta.txt");
             while(shardMetas.hasMoreElements()) {
                 URL url = shardMetas.nextElement();
                 String shardID = IOUtils.toString(url.openStream());
@@ -162,7 +163,7 @@ public class GlassLoader {
     @SuppressWarnings("unchecked")
     private ShardInfo loadShardInfo(String path, String overrideID) {
         try {
-            InputStream shardInfoStream = GlassLoader.class.getClassLoader().getResourceAsStream(path);
+            InputStream shardInfoStream = this.classLoader.getResourceAsStream(path);
             TomlTable shardInfoTOML = Toml.from(Objects.requireNonNull(shardInfoStream));
 
             String id = (String) shardInfoTOML.getOrDefault("id", overrideID);
@@ -224,7 +225,7 @@ public class GlassLoader {
 
     private ShardSpecification loadShardSpecification(String path) {
         try {
-            InputStream shardInfoStream = GlassLoader.class.getClassLoader().getResourceAsStream(path);
+            InputStream shardInfoStream = this.classLoader.getResourceAsStream(path);
             TomlTable shardInfoTOML = Toml.from(Objects.requireNonNull(shardInfoStream));
 
             String id = (String) shardInfoTOML.get("id");
@@ -259,6 +260,10 @@ public class GlassLoader {
 
     public <T> T getInterface(Class<T> interfaceClass) {
         return interfaceClass.cast(this.interfaces.get(interfaceClass));
+    }
+
+    public void registerTransformer(ITransformer transformer) {
+        //this.classLoader.
     }
 
     public List<ShardSpecification> getRegisteredShards() {

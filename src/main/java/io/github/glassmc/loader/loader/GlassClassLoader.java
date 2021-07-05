@@ -1,4 +1,4 @@
-package io.github.glassmc.loader.launch;
+package io.github.glassmc.loader.loader;
 
 import org.apache.commons.io.IOUtils;
 
@@ -21,8 +21,7 @@ public class GlassClassLoader extends URLClassLoader {
     }
 
     private final ClassLoader parent = GlassClassLoader.class.getClassLoader();
-
-    private final Map<String, Class<?>> cache = new HashMap<>();
+    private final List<ITransformer> transformers = new ArrayList<>();
 
     public GlassClassLoader() {
         super(getLoaderURLs(), null);
@@ -51,17 +50,16 @@ public class GlassClassLoader extends URLClassLoader {
             e.printStackTrace();
         }
 
-        Class<?> clazz = cache.get(name);
-        if(clazz == null) {
-            byte[] data = loadClassData(name);
-            if(data == null) {
-                throw new ClassNotFoundException(name);
-            }
-
-            clazz = defineClass(name, data, 0, data.length);
-            cache.put(name, clazz);
+        byte[] data = loadClassData(name);
+        if(data == null) {
+            throw new ClassNotFoundException(name);
         }
-        return clazz;
+
+        for(ITransformer transformer : this.transformers) {
+            data = transformer.transform(name, data);
+        }
+
+        return defineClass(name, data, 0, data.length);
     }
 
     private byte[] loadClassData(String className) {
