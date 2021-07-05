@@ -17,10 +17,6 @@ public class GlassClientLauncher {
         GlassLoader.getInstance().loadShards();
         GlassLoader.getInstance().loadShards();
 
-        for(ShardInfo spec : GlassLoader.getInstance().getShards()) {
-            System.out.println(spec.getSpecification().getID());
-        }
-
         GlassLoader.getInstance().runHooks("client-initialize");
 
         try {

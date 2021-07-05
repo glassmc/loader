@@ -31,7 +31,7 @@ public class GlassLoader {
     private final Map<Class<?>, Object> interfaces = new HashMap<>();
 
     private GlassLoader() {
-        this.registerVirtualShard(new ShardSpecification("loader", "0.0.1"));
+        this.registerVirtualShard(new ShardSpecification("loader", "0.1.0"));
     }
 
     public void appendExternalShards() {
@@ -110,7 +110,7 @@ public class GlassLoader {
         List<Map.Entry<ShardInfo, Class<? extends Listener>>> listeners = new ArrayList<>(this.listeners.getOrDefault(hook, new ArrayList<>()));
         List<Map.Entry<ShardInfo, Class<? extends Listener>>> filteredListeners = listeners
                 .stream()
-                .filter(listener -> targets.contains(listener.getKey()))
+                .filter(listener -> targets.contains(this.getMainParent(listener.getKey())))
                 .collect(Collectors.toList());
 
         int i = 0;
@@ -150,6 +150,13 @@ public class GlassLoader {
                 filteredListeners.add(listener);
             }
         }
+    }
+
+    private ShardInfo getMainParent(ShardInfo shardInfo) {
+        if(shardInfo.getParent() != null) {
+            return this.getMainParent(shardInfo.getParent());
+        }
+        return shardInfo;
     }
 
     @SuppressWarnings("unchecked")
