@@ -21,11 +21,14 @@ public class GlassClassLoader extends URLClassLoader {
     }
 
     private final ClassLoader parent = GlassClassLoader.class.getClassLoader();
-    private final List<ITransformer> transformers = new ArrayList<>();
 
-    public GlassClassLoader() {
+    private final List<Object> transformers = new ArrayList<>();
+    private final Method transformMethod;
+
+    public GlassClassLoader() throws ClassNotFoundException, NoSuchMethodException {
         super(getLoaderURLs(), null);
         instance = this;
+        transformMethod = this.loadClass("io.github.glassmc.loader.loader.ITransformer").getMethod("transform", String.class, byte[].class);
     }
 
     public void addURL(URL url) {
@@ -55,8 +58,12 @@ public class GlassClassLoader extends URLClassLoader {
             throw new ClassNotFoundException(name);
         }
 
-        for(ITransformer transformer : this.transformers) {
-            data = transformer.transform(name, data);
+        for(Object transformer : this.transformers) {
+            try {
+                data = (byte[]) transformMethod.invoke(transformer, name, data);
+            } catch (IllegalAccessException | InvocationTargetException e) {
+                e.printStackTrace();
+            }
         }
 
         return defineClass(name, data, 0, data.length);
@@ -101,8 +108,8 @@ public class GlassClassLoader extends URLClassLoader {
         return urls.toArray(new URL[0]);
     }
 
-    public List<ITransformer> getTransformers() {
-        return transformers;
+    public void addTransformer(Object transformer) {
+        this.transformers.add(transformer);
     }
 
 }

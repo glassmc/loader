@@ -7,7 +7,7 @@ import java.lang.reflect.Method;
 
 public class GlassClientMain {
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws ClassNotFoundException, NoSuchMethodException {
         ClassLoader classLoader = new GlassClassLoader();
         try {
             Class<?> wrapperClass = classLoader.loadClass("io.github.glassmc.loader.client.GlassClientLauncher");
