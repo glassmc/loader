@@ -11,6 +11,7 @@ import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class GlassLoader {
 
@@ -22,7 +23,6 @@ public class GlassLoader {
 
     private final File shardsFile = new File("shards");
 
-    private final List<ShardSpecification> virtualShards = new ArrayList<>();
     private final List<ShardSpecification> registeredShards = new ArrayList<>();
     private final List<ShardInfo> shards = new ArrayList<>();
 
@@ -52,17 +52,16 @@ public class GlassLoader {
     }
 
     public void loadShards() {
-        this.registeredShards.clear();
-        this.registeredShards.addAll(this.virtualShards);
-        this.shards.clear();
-        this.listeners.clear();
-
         try {
             Enumeration<URL> shardMetas = GlassLoader.class.getClassLoader().getResources("glass/shardMeta.txt");
             while(shardMetas.hasMoreElements()) {
                 URL url = shardMetas.nextElement();
                 String shardID = IOUtils.toString(url.openStream());
-                this.registeredShards.add(this.loadShardSpecification("glass/" + shardID + "/info.toml"));
+
+                boolean alreadyLoaded = this.registeredShards.stream().anyMatch(specification -> specification.getID().equals(shardID));
+                if(!alreadyLoaded) {
+                    this.registeredShards.add(this.loadShardSpecification("glass/" + shardID + "/info.toml"));
+                }
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -73,10 +72,15 @@ public class GlassLoader {
             while(shardMetas.hasMoreElements()) {
                 URL url = shardMetas.nextElement();
                 String shardID = IOUtils.toString(url.openStream());
-                ShardInfo shardInfo = this.loadShardInfo("glass/" + shardID + "/info.toml", null);
-                if(shardInfo != null) {
-                    this.shards.add(shardInfo);
-                    this.registerListeners(shardInfo);
+
+                boolean alreadyLoaded = this.shards.stream().anyMatch(info -> info.getSpecification().getID().equals(shardID));
+                if(!alreadyLoaded) {
+                    ShardInfo shardInfo = this.loadShardInfo("glass/" + shardID + "/info.toml", null);
+                    if(shardInfo != null) {
+                        this.shards.add(shardInfo);
+                        this.registerListeners(shardInfo);
+                        this.runHooks("initialize", Collections.singletonList(shardInfo));
+                    }
                 }
             }
         } catch (IOException e) {
@@ -98,16 +102,24 @@ public class GlassLoader {
     }
 
     public void runHooks(String hook) {
+        this.runHooks(hook, this.shards);
+    }
+
+    public void runHooks(String hook, List<ShardInfo> targets) {
         List<ShardSpecification> executedListeners = new ArrayList<>();
-        List<Map.Entry<ShardInfo, Class<? extends Listener>>> listeners = new ArrayList<>(this.listeners.get(hook));
+        List<Map.Entry<ShardInfo, Class<? extends Listener>>> listeners = new ArrayList<>(this.listeners.getOrDefault(hook, new ArrayList<>()));
+        List<Map.Entry<ShardInfo, Class<? extends Listener>>> filteredListeners = listeners
+                .stream()
+                .filter(listener -> targets.contains(listener.getKey()))
+                .collect(Collectors.toList());
 
         int i = 0;
-        while(i < listeners.size()) {
-            Map.Entry<ShardInfo, Class<? extends Listener>> listener = listeners.get(i);
+        while(i < filteredListeners.size()) {
+            Map.Entry<ShardInfo, Class<? extends Listener>> listener = filteredListeners.get(i);
             boolean canLoad = true;
             for(ShardSpecification dependency : listener.getKey().getDependencies()) {
                 boolean satisfied = true;
-                for(Map.Entry<ShardInfo, Class<? extends Listener>> listener1 : listeners) {
+                for(Map.Entry<ShardInfo, Class<? extends Listener>> listener1 : filteredListeners) {
                     if(dependency.isSatisfied(listener1.getKey().getSpecification())) {
                         satisfied = false;
                     }
@@ -134,8 +146,8 @@ public class GlassLoader {
                 }
                 i++;
             } else {
-                listeners.remove(listener);
-                listeners.add(listener);
+                filteredListeners.remove(listener);
+                filteredListeners.add(listener);
             }
         }
     }
@@ -218,7 +230,7 @@ public class GlassLoader {
     }
 
     public void registerVirtualShard(ShardSpecification specification) {
-        this.virtualShards.add(specification);
+        this.registeredShards.add(specification);
     }
 
     public void registerAPI(Object api) {
