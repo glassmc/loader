@@ -271,6 +271,10 @@ public class GlassLoader {
         this.classLoader.addReloadClass(name);
     }
 
+    public void reloadClasses() {
+        this.classLoader.reloadClasses();
+    }
+
     public List<ShardSpecification> getRegisteredShards() {
         return registeredShards;
     }
