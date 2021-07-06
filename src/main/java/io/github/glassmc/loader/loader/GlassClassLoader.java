@@ -18,8 +18,6 @@ import java.util.*;
 
 public class GlassClassLoader extends URLClassLoader {
 
-    private final ClassLoader parent = GlassClassLoader.class.getClassLoader();
-
     private final List<Object> transformers = new ArrayList<>();
     private final Method transformMethod;
 
@@ -28,9 +26,12 @@ public class GlassClassLoader extends URLClassLoader {
 
     private final Map<String, Class<?>> cache = new HashMap<>();
 
+    private final List<URL> urls = new ArrayList<>();
+
     public GlassClassLoader() throws ClassNotFoundException, NoSuchMethodException {
-        super(getLoaderURLs(), null);
-        transformMethod = this.loadClass("io.github.glassmc.loader.loader.ITransformer").getMethod("transform", String.class, byte[].class);
+        super(getLoaderURLs(), GlassClassLoader.class.getClassLoader());
+        this.urls.addAll(Arrays.asList(super.getURLs()));
+        this.transformMethod = this.loadClass("io.github.glassmc.loader.loader.ITransformer").getMethod("transform", String.class, byte[].class);
 
         Instrumentation instrumentation;
         try {
@@ -41,21 +42,17 @@ public class GlassClassLoader extends URLClassLoader {
         this.instrumentation = instrumentation;
     }
 
-    public void addURL(URL url) {
-        super.addURL(url);
-    }
-
     @Override
     public Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
         if(name.startsWith("java.") || name.startsWith("jdk.internal.") || name.startsWith("sun.")) {
-            return this.parent.loadClass(name);
+            return this.getParent().loadClass(name);
         }
 
         try {
             Method method = ClassLoader.class.getDeclaredMethod("findLoadedClass", String.class);
             method.setAccessible(true);
 
-            Class<?> clazz = (Class<?>) method.invoke(this.parent, name);
+            Class<?> clazz = (Class<?>) method.invoke(this.getParent(), name);
             if(clazz != null) {
                 return clazz;
             }
@@ -101,18 +98,26 @@ public class GlassClassLoader extends URLClassLoader {
         return null;
     }
 
+    @Override
+    public URL getResource(String name) {
+        try {
+            Enumeration<URL> urls = super.getResources(name);
+            while(urls.hasMoreElements()) {
+                URL url = urls.nextElement();
+                for(URL pathURL : this.urls) {
+                    if(url.getFile().contains(pathURL.getFile())) {
+                        return url;
+                    }
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return super.getResource(name);
+    }
+
     private static URL[] getLoaderURLs() {
         List<URL> urls = new ArrayList<>();
-
-        String baseClassPath = System.getProperty("java.class.path");
-        for(String url : baseClassPath.split(File.pathSeparator)) {
-            try {
-                urls.add(new File(url).toURI().toURL());
-            } catch (MalformedURLException e) {
-                e.printStackTrace();
-            }
-        }
-
         File shardDirectory = new File("shards");
 
         try {
@@ -126,6 +131,15 @@ public class GlassClassLoader extends URLClassLoader {
             e.printStackTrace();
         }
         return urls.toArray(new URL[0]);
+    }
+
+    public void addURL(URL url) {
+        this.urls.add(url);
+        super.addURL(url);
+    }
+
+    public void removeURL(URL url) {
+        this.urls.remove(url);
     }
 
     public void addTransformer(Object transformer) {

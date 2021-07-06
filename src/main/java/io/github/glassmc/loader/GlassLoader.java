@@ -53,6 +53,14 @@ public class GlassLoader {
         }
     }
 
+    public void removeShard(File shardFile) {
+        try {
+            this.classLoader.removeURL(shardFile.toURI().toURL());
+        } catch(MalformedURLException e) {
+            e.printStackTrace();
+        }
+    }
+
     public void loadShards() {
         try {
             Enumeration<URL> shardMetas = this.classLoader.getResources("glass/shardMeta.txt");
@@ -88,6 +96,8 @@ public class GlassLoader {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        this.reloadClasses();
     }
 
     private void registerListeners(ShardInfo shardInfo) {
