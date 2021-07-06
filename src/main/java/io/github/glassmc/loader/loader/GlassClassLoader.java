@@ -26,6 +26,8 @@ public class GlassClassLoader extends URLClassLoader {
     private final List<String> classesToReload = new ArrayList<>();
     private final Instrumentation instrumentation;
 
+    private final Map<String, Class<?>> cache = new HashMap<>();
+
     public GlassClassLoader() throws ClassNotFoundException, NoSuchMethodException {
         super(getLoaderURLs(), null);
         transformMethod = this.loadClass("io.github.glassmc.loader.loader.ITransformer").getMethod("transform", String.class, byte[].class);
@@ -61,8 +63,13 @@ public class GlassClassLoader extends URLClassLoader {
             e.printStackTrace();
         }
 
-        byte[] data = this.getModifiedBytes(name);
-        return defineClass(name, data, 0, data.length);
+        Class<?> clazz = this.cache.get(name);
+        if(clazz == null) {
+            byte[] data = this.getModifiedBytes(name);
+            clazz = defineClass(name, data, 0, data.length);
+            this.cache.put(name, clazz);
+        }
+        return clazz;
     }
 
     public byte[] getModifiedBytes(String name) throws ClassNotFoundException {
@@ -134,7 +141,7 @@ public class GlassClassLoader extends URLClassLoader {
             ClassDefinition[] definitions = new ClassDefinition[this.classesToReload.size()];
             for(int i = 0; i < this.classesToReload.size(); i++) {
                 try {
-                    Class<?> clazz = Class.forName(this.classesToReload.get(i));
+                    Class<?> clazz = this.loadClass(this.classesToReload.get(i));
                     definitions[i] = new ClassDefinition(clazz, this.getModifiedBytes(clazz.getName()));
                 } catch(ClassNotFoundException e) {
                     e.printStackTrace();
