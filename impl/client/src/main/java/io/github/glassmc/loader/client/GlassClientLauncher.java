@@ -1,7 +1,6 @@
 package io.github.glassmc.loader.client;
 
 import io.github.glassmc.loader.GlassLoader;
-import io.github.glassmc.loader.ShardInfo;
 import io.github.glassmc.loader.ShardSpecification;
 
 import java.lang.reflect.InvocationTargetException;

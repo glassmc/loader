@@ -11,4 +11,5 @@ repositories {
 
 dependencies {
     implementation project(':')
+    implementation 'org.xeustechnologies:jcl-core:2.8'
 }

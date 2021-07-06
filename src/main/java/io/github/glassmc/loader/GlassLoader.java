@@ -9,6 +9,7 @@ import org.apache.commons.io.IOUtils;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.InvocationTargetException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.*;
@@ -38,7 +39,7 @@ public class GlassLoader {
 
     public void appendExternalShards() {
         if(this.shardsFile.exists()) {
-            for (File shard : Objects.requireNonNull(this.shardsFile.listFiles())) {
+            for(File shard : Objects.requireNonNull(this.shardsFile.listFiles())) {
                 this.appendShard(shard);
             }
         }
@@ -47,7 +48,7 @@ public class GlassLoader {
     public void appendShard(File shardFile) {
         try {
             this.classLoader.addURL(shardFile.toURI().toURL());
-        } catch (MalformedURLException e) {
+        } catch(MalformedURLException e) {
             e.printStackTrace();
         }
     }
@@ -64,7 +65,7 @@ public class GlassLoader {
                     this.registeredShards.add(this.loadShardSpecification("glass/" + shardID + "/info.toml"));
                 }
             }
-        } catch (IOException e) {
+        } catch(IOException e) {
             e.printStackTrace();
         }
 
@@ -140,9 +141,9 @@ public class GlassLoader {
             if(canLoad) {
                 executedListeners.add(listener.getKey().getSpecification());
                 try {
-                    Listener listener1 = listener.getValue().newInstance();
+                    Listener listener1 = listener.getValue().getConstructor().newInstance();
                     listener1.run();
-                } catch (InstantiationException | IllegalAccessException e) {
+                } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
                     e.printStackTrace();
                 }
                 i++;
@@ -266,12 +267,20 @@ public class GlassLoader {
         this.classLoader.addTransformer(transformer);
     }
 
+    public void registerReloadClass(String name) {
+        this.classLoader.addReloadClass(name);
+    }
+
     public List<ShardSpecification> getRegisteredShards() {
         return registeredShards;
     }
 
     public List<ShardInfo> getShards() {
         return shards;
+    }
+
+    public File getShardsFile() {
+        return shardsFile;
     }
 
 }
