@@ -18,7 +18,7 @@ import java.util.*;
 
 public class GlassClassLoader extends URLClassLoader {
 
-    private final List<Class<?>> transformers = new ArrayList<>();
+    private final List<Object> transformers = new ArrayList<>();
     private final Method transformMethod;
 
     private final List<String> classesToReload = new ArrayList<>();
@@ -29,7 +29,7 @@ public class GlassClassLoader extends URLClassLoader {
     private final List<URL> urls = new ArrayList<>();
 
     public GlassClassLoader() throws ClassNotFoundException, NoSuchMethodException {
-        super(getLoaderURLs(), GlassClassLoader.class.getClassLoader());
+        super(new URL[0], GlassClassLoader.class.getClassLoader());
         this.urls.addAll(Arrays.asList(super.getURLs()));
         this.transformMethod = this.loadClass("io.github.glassmc.loader.loader.ITransformer").getMethod("transform", String.class, byte[].class);
 
@@ -75,10 +75,10 @@ public class GlassClassLoader extends URLClassLoader {
             throw new ClassNotFoundException(name);
         }
 
-        for(Class<?> transformer : this.transformers) {
+        for(Object transformer : this.transformers) {
             try {
-                data = (byte[]) transformMethod.invoke(transformer.getConstructor().newInstance(), name, data);
-            } catch(IllegalAccessException | InvocationTargetException | NoSuchMethodException | InstantiationException e) {
+                data = (byte[]) transformMethod.invoke(transformer, name, data);
+            } catch(IllegalAccessException | InvocationTargetException e) {
                 e.printStackTrace();
             }
         }
@@ -99,38 +99,36 @@ public class GlassClassLoader extends URLClassLoader {
     }
 
     @Override
-    public URL getResource(String name) {
-        try {
-            Enumeration<URL> urls = super.getResources(name);
-            while(urls.hasMoreElements()) {
-                URL url = urls.nextElement();
-                for(URL pathURL : this.urls) {
-                    if(url.getFile().contains(pathURL.getFile())) {
-                        return url;
-                    }
+    public Enumeration<URL> getResources(String name) throws IOException {
+        List<URL> parentResources = Collections.list(this.getParent().getResources(name));
+        List<URL> filteredURLs = new ArrayList<>();
+        Enumeration<URL> urls = super.getResources(name);
+        while(urls.hasMoreElements()) {
+            URL url = urls.nextElement();
+            for(URL pathURL : this.urls) {
+                if(url.getFile().contains(pathURL.getFile())) {
+                    filteredURLs.add(url);
                 }
             }
-        } catch (IOException e) {
+
+            if(parentResources.contains(url)) {
+                filteredURLs.add(url);
+            }
+        }
+        return Collections.enumeration(filteredURLs);
+    }
+
+    @Override
+    public URL getResource(String name) {
+        try {
+            Enumeration<URL> resources = this.getResources(name);
+            if(resources.hasMoreElements()) {
+                return resources.nextElement();
+            }
+        } catch(IOException e) {
             e.printStackTrace();
         }
         return super.getResource(name);
-    }
-
-    private static URL[] getLoaderURLs() {
-        List<URL> urls = new ArrayList<>();
-        File shardDirectory = new File("shards");
-
-        try {
-            File[] files = shardDirectory.listFiles();
-            if(files != null) {
-                for (File file : files) {
-                    urls.add(file.toURI().toURL());
-                }
-            }
-        } catch(MalformedURLException e) {
-            e.printStackTrace();
-        }
-        return urls.toArray(new URL[0]);
     }
 
     public void addURL(URL url) {
@@ -143,11 +141,15 @@ public class GlassClassLoader extends URLClassLoader {
     }
 
     public void addTransformer(Class<?> transformer) {
-        this.transformers.add(transformer);
+        try {
+            this.transformers.add(transformer.getConstructor().newInstance());
+        } catch (InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+            e.printStackTrace();
+        }
     }
 
-    public void removeTransformer(Class<?> transformer) {
-        this.transformers.remove(transformer);
+    public void removeTransformer(Class<?> transformerClass) {
+        this.transformers.removeIf(transformer -> transformer.getClass().equals(transformerClass));
     }
 
     public void addReloadClass(String className) {
@@ -155,6 +157,7 @@ public class GlassClassLoader extends URLClassLoader {
     }
 
     public void reloadClasses() throws UnsupportedOperationException {
+        System.out.println("L " + this.classesToReload);
         if(this.instrumentation != null) {
             ClassDefinition[] definitions = new ClassDefinition[this.classesToReload.size()];
             for(int i = 0; i < this.classesToReload.size(); i++) {

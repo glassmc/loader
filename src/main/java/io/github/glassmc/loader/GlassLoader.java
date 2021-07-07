@@ -27,6 +27,7 @@ public class GlassLoader {
     private final GlassClassLoader classLoader = (GlassClassLoader) GlassLoader.class.getClassLoader();
 
     private final List<ShardSpecification> registeredShards = new ArrayList<>();
+    private final List<ShardSpecification> virtualShards = new ArrayList<>();
     private final List<ShardInfo> shards = new ArrayList<>();
 
     private final Map<String, List<Map.Entry<ShardInfo, Class<? extends Listener>>>> listeners = new HashMap<>();
@@ -63,15 +64,25 @@ public class GlassLoader {
 
     public void loadShards() {
         try {
+            List<ShardSpecification> unloadedShards = new ArrayList<>(this.registeredShards);
+
             Enumeration<URL> shardMetas = this.classLoader.getResources("glass/shardMeta.txt");
             while(shardMetas.hasMoreElements()) {
                 URL url = shardMetas.nextElement();
                 String shardID = IOUtils.toString(url.openStream());
 
+                unloadedShards.removeIf(info -> info.getID().equals(shardID));
+
                 boolean alreadyLoaded = this.registeredShards.stream().anyMatch(specification -> specification.getID().equals(shardID));
                 if(!alreadyLoaded) {
                     this.registeredShards.add(this.loadShardSpecification("glass/" + shardID + "/info.toml"));
                 }
+            }
+
+            unloadedShards.removeIf(this.virtualShards::contains);
+
+            for(ShardSpecification shardSpecification : unloadedShards) {
+                this.registeredShards.remove(shardSpecification);
             }
         } catch(IOException e) {
             e.printStackTrace();
@@ -97,9 +108,11 @@ public class GlassLoader {
                 }
             }
 
+            System.out.println("P " + this.shards + unloadedShards);
             for(ShardInfo shardInfo : unloadedShards) {
-                this.unregisterListeners(shardInfo);
+                this.shards.remove(shardInfo);
                 this.runHooks("terminate", Collections.singletonList(shardInfo));
+                this.unregisterListeners(shardInfo);
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -268,6 +281,7 @@ public class GlassLoader {
 
     public void registerVirtualShard(ShardSpecification specification) {
         this.registeredShards.add(specification);
+        this.virtualShards.add(specification);
     }
 
     public void registerAPI(Object api) {
