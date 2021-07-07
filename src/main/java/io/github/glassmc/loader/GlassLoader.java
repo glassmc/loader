@@ -34,7 +34,7 @@ public class GlassLoader {
     private final Map<Class<?>, Object> interfaces = new HashMap<>();
 
     private GlassLoader() {
-        this.registerVirtualShard(new ShardSpecification("loader", "0.2.0"));
+        this.registerVirtualShard(new ShardSpecification("loader", "0.3.0"));
     }
 
     public void appendExternalShards() {
@@ -78,10 +78,13 @@ public class GlassLoader {
         }
 
         try {
+            List<ShardInfo> unloadedShards = new ArrayList<>(this.shards);
             Enumeration<URL> shardMetas = this.classLoader.getResources("glass/shardMeta.txt");
             while(shardMetas.hasMoreElements()) {
                 URL url = shardMetas.nextElement();
                 String shardID = IOUtils.toString(url.openStream());
+
+                unloadedShards.removeIf(info -> info.getSpecification().getID().equals(shardID));
 
                 boolean alreadyLoaded = this.shards.stream().anyMatch(info -> info.getSpecification().getID().equals(shardID));
                 if(!alreadyLoaded) {
@@ -92,6 +95,11 @@ public class GlassLoader {
                         this.runHooks("initialize", Collections.singletonList(shardInfo));
                     }
                 }
+            }
+
+            for(ShardInfo shardInfo : unloadedShards) {
+                this.unregisterListeners(shardInfo);
+                this.runHooks("terminate", Collections.singletonList(shardInfo));
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -110,6 +118,16 @@ public class GlassLoader {
             for(Class<? extends Listener> listener : listeners.get(hook)) {
                 this.listeners.computeIfAbsent(hook, k -> new ArrayList<>()).add(new AbstractMap.SimpleEntry<>(shardInfo, listener));
             }
+        }
+    }
+
+    private void unregisterListeners(ShardInfo shardInfo) {
+        for(ShardInfo implementation : shardInfo.getImplementations()) {
+            this.unregisterListeners(implementation);
+        }
+
+        for(Map.Entry<String, List<Map.Entry<ShardInfo, Class<? extends Listener>>>> listener : listeners.entrySet()) {
+            listener.getValue().removeIf(entry -> entry.getKey().equals(shardInfo));
         }
     }
 
@@ -273,8 +291,12 @@ public class GlassLoader {
         return interfaceClass.cast(this.interfaces.get(interfaceClass));
     }
 
-    public void registerTransformer(ITransformer transformer) {
+    public void registerTransformer(Class<? extends ITransformer> transformer) {
         this.classLoader.addTransformer(transformer);
+    }
+
+    public void unregisterTransformer(Class<? extends ITransformer> transformer) {
+        this.classLoader.removeTransformer(transformer);
     }
 
     public void registerReloadClass(String name) {

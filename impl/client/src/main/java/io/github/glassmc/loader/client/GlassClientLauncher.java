@@ -14,7 +14,6 @@ public class GlassClientLauncher {
         GlassLoader.getInstance().appendExternalShards();
 
         GlassLoader.getInstance().loadShards();
-        GlassLoader.getInstance().loadShards();
 
         GlassLoader.getInstance().runHooks("client-initialize");
 

@@ -18,7 +18,7 @@ import java.util.*;
 
 public class GlassClassLoader extends URLClassLoader {
 
-    private final List<Object> transformers = new ArrayList<>();
+    private final List<Class<?>> transformers = new ArrayList<>();
     private final Method transformMethod;
 
     private final List<String> classesToReload = new ArrayList<>();
@@ -75,10 +75,10 @@ public class GlassClassLoader extends URLClassLoader {
             throw new ClassNotFoundException(name);
         }
 
-        for(Object transformer : this.transformers) {
+        for(Class<?> transformer : this.transformers) {
             try {
-                data = (byte[]) transformMethod.invoke(transformer, name, data);
-            } catch (IllegalAccessException | InvocationTargetException e) {
+                data = (byte[]) transformMethod.invoke(transformer.getConstructor().newInstance(), name, data);
+            } catch(IllegalAccessException | InvocationTargetException | NoSuchMethodException | InstantiationException e) {
                 e.printStackTrace();
             }
         }
@@ -142,8 +142,12 @@ public class GlassClassLoader extends URLClassLoader {
         this.urls.remove(url);
     }
 
-    public void addTransformer(Object transformer) {
+    public void addTransformer(Class<?> transformer) {
         this.transformers.add(transformer);
+    }
+
+    public void removeTransformer(Class<?> transformer) {
+        this.transformers.remove(transformer);
     }
 
     public void addReloadClass(String className) {
