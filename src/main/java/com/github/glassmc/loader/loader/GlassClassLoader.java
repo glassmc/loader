@@ -1,9 +1,8 @@
-package io.github.glassmc.loader.loader;
+package com.github.glassmc.loader.loader;
 
 import net.bytebuddy.agent.ByteBuddyAgent;
 import org.apache.commons.io.IOUtils;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.instrument.ClassDefinition;
@@ -11,7 +10,6 @@ import java.lang.instrument.Instrumentation;
 import java.lang.instrument.UnmodifiableClassException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.*;
@@ -31,7 +29,7 @@ public class GlassClassLoader extends URLClassLoader {
     public GlassClassLoader() throws ClassNotFoundException, NoSuchMethodException {
         super(new URL[0], GlassClassLoader.class.getClassLoader());
         this.urls.addAll(Arrays.asList(super.getURLs()));
-        this.transformMethod = this.loadClass("io.github.glassmc.loader.loader.ITransformer").getMethod("transform", String.class, byte[].class);
+        this.transformMethod = this.loadClass("com.github.glassmc.loader.loader.ITransformer").getMethod("transform", String.class, byte[].class);
 
         Instrumentation instrumentation;
         try {
@@ -157,7 +155,6 @@ public class GlassClassLoader extends URLClassLoader {
     }
 
     public void reloadClasses() throws UnsupportedOperationException {
-        System.out.println("L " + this.classesToReload);
         if(this.instrumentation != null) {
             ClassDefinition[] definitions = new ClassDefinition[this.classesToReload.size()];
             for(int i = 0; i < this.classesToReload.size(); i++) {

@@ -1,7 +1,11 @@
 plugins {
     id 'java'
     id 'com.github.johnrengelman.shadow' version '6.1.0'
+    id 'maven-publish'
 }
+
+group = 'com.github.glassmc'
+version = '0.3.0'
 
 sourceCompatibility = targetCompatibility = 1.8
 
@@ -12,4 +16,16 @@ repositories {
 dependencies {
     implementation project(':')
     implementation 'org.xeustechnologies:jcl-core:2.8'
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            groupId = project.group
+            artifactId = project.name
+            version = project.version
+
+            from components.java
+        }
+    }
 }

@@ -1,3 +1,4 @@
+rootProject.name = 'loader'
 include(
         ':impl:client'
 )

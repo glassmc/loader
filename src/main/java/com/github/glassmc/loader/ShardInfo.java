@@ -1,4 +1,4 @@
-package io.github.glassmc.loader;
+package com.github.glassmc.loader;
 
 import java.util.List;
 import java.util.Map;

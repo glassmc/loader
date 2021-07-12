@@ -1,9 +1,9 @@
-package io.github.glassmc.loader;
+package com.github.glassmc.loader;
 
 import com.github.jezza.Toml;
 import com.github.jezza.TomlTable;
-import io.github.glassmc.loader.loader.GlassClassLoader;
-import io.github.glassmc.loader.loader.ITransformer;
+import com.github.glassmc.loader.loader.GlassClassLoader;
+import com.github.glassmc.loader.loader.ITransformer;
 import org.apache.commons.io.IOUtils;
 
 import java.io.File;
@@ -108,7 +108,6 @@ public class GlassLoader {
                 }
             }
 
-            System.out.println("P " + this.shards + unloadedShards);
             for(ShardInfo shardInfo : unloadedShards) {
                 this.shards.remove(shardInfo);
                 this.runHooks("terminate", Collections.singletonList(shardInfo));

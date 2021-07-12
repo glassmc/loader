@@ -1,4 +1,4 @@
-package io.github.glassmc.loader.util;
+package com.github.glassmc.loader.util;
 
 public class Identifier {
 

@@ -4,5 +4,5 @@ version = "1.0.0"
 
 [listeners]
 test = [
-  "io.github.glassmc.loader.test.shard.TestListener"
+  "TestListener"
 ]

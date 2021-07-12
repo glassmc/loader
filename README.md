@@ -12,7 +12,7 @@ Kiln does not have any functionality yet in terms of generating run configuratio
 
 - **Classpath:** {project-name}.exec.main
 - **JVM Arguments:** see [jvm arguments](#jvm-arguments)
-- **Main Class:** io.github.glassmc.loader.client.GlassClientMain
+- **Main Class:** com.github.glassmc.loader.client.GlassClientMain
 - **Program Arguments:** see [program arguments](#program-arguments)
 - **Working Directory:** run
 

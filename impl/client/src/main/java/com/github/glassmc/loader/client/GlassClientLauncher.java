@@ -1,7 +1,7 @@
-package io.github.glassmc.loader.client;
+package com.github.glassmc.loader.client;
 
-import io.github.glassmc.loader.GlassLoader;
-import io.github.glassmc.loader.ShardSpecification;
+import com.github.glassmc.loader.GlassLoader;
+import com.github.glassmc.loader.ShardSpecification;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
