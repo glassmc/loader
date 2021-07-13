@@ -2,7 +2,6 @@ package com.github.glassmc.loader;
 
 import com.github.jezza.Toml;
 import com.github.jezza.TomlTable;
-import com.github.glassmc.loader.loader.GlassClassLoader;
 import com.github.glassmc.loader.loader.ITransformer;
 import org.apache.commons.io.IOUtils;
 
@@ -10,6 +9,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.*;
@@ -24,7 +24,7 @@ public class GlassLoader {
     }
 
     private final File shardsFile = new File("shards");
-    private final GlassClassLoader classLoader = (GlassClassLoader) GlassLoader.class.getClassLoader();
+    private final ClassLoader classLoader = GlassLoader.class.getClassLoader();
 
     private final List<ShardSpecification> registeredShards = new ArrayList<>();
     private final List<ShardSpecification> virtualShards = new ArrayList<>();
@@ -48,16 +48,16 @@ public class GlassLoader {
 
     public void appendShard(File shardFile) {
         try {
-            this.classLoader.addURL(shardFile.toURI().toURL());
-        } catch(MalformedURLException e) {
+            this.invokeClassloaderMethod("addURL", shardFile.toURI().toURL());
+        } catch (MalformedURLException e) {
             e.printStackTrace();
         }
     }
 
     public void removeShard(File shardFile) {
         try {
-            this.classLoader.removeURL(shardFile.toURI().toURL());
-        } catch(MalformedURLException e) {
+            this.invokeClassloaderMethod("removeURL", shardFile.toURI().toURL());
+        } catch (MalformedURLException e) {
             e.printStackTrace();
         }
     }
@@ -305,19 +305,33 @@ public class GlassLoader {
     }
 
     public void registerTransformer(Class<? extends ITransformer> transformer) {
-        this.classLoader.addTransformer(transformer);
+        this.invokeClassloaderMethod("addTransformer", transformer);
     }
 
     public void unregisterTransformer(Class<? extends ITransformer> transformer) {
-        this.classLoader.removeTransformer(transformer);
+        this.invokeClassloaderMethod("removeTransformer", transformer);
     }
 
     public void registerReloadClass(String name) {
-        this.classLoader.addReloadClass(name);
+        this.invokeClassloaderMethod("addReloadClass", name);
     }
 
     public void reloadClasses() {
-        this.classLoader.reloadClasses();
+        this.invokeClassloaderMethod("reloadClasses");
+    }
+
+    private void invokeClassloaderMethod(String name, Object... args) {
+        try {
+            Class<?>[] argsClasses = new Class[args.length];
+            for(int i = 0 ; i < args.length; i++) {
+                argsClasses[i] = args[i].getClass();
+            }
+
+            Method removeURL = this.classLoader.getClass().getMethod(name, argsClasses);
+            removeURL.invoke(this.classLoader, args);
+        } catch(NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+            e.printStackTrace();
+        }
     }
 
     public List<ShardSpecification> getRegisteredShards() {

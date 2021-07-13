@@ -42,20 +42,8 @@ public class GlassClassLoader extends URLClassLoader {
 
     @Override
     public Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
-        if(name.startsWith("java.") || name.startsWith("jdk.internal.") || name.startsWith("sun.")) {
+        if(name.startsWith("java.") || name.startsWith("jdk.internal.") || name.startsWith("sun.") || name.startsWith("com.sun.") || name.startsWith("javax.") || name.startsWith("org.xml.") || name.startsWith("org.w3c.")) {
             return this.getParent().loadClass(name);
-        }
-
-        try {
-            Method method = ClassLoader.class.getDeclaredMethod("findLoadedClass", String.class);
-            method.setAccessible(true);
-
-            Class<?> clazz = (Class<?>) method.invoke(this.getParent(), name);
-            if(clazz != null) {
-                return clazz;
-            }
-        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-            e.printStackTrace();
         }
 
         Class<?> clazz = this.cache.get(name);
@@ -134,10 +122,12 @@ public class GlassClassLoader extends URLClassLoader {
         super.addURL(url);
     }
 
+    @SuppressWarnings("unused")
     public void removeURL(URL url) {
         this.urls.remove(url);
     }
 
+    @SuppressWarnings("unused")
     public void addTransformer(Class<?> transformer) {
         try {
             this.transformers.add(transformer.getConstructor().newInstance());
@@ -146,14 +136,17 @@ public class GlassClassLoader extends URLClassLoader {
         }
     }
 
+    @SuppressWarnings("unused")
     public void removeTransformer(Class<?> transformerClass) {
         this.transformers.removeIf(transformer -> transformer.getClass().equals(transformerClass));
     }
 
+    @SuppressWarnings("unused")
     public void addReloadClass(String className) {
         this.classesToReload.add(className);
     }
 
+    @SuppressWarnings("unused")
     public void reloadClasses() throws UnsupportedOperationException {
         if(this.instrumentation != null) {
             ClassDefinition[] definitions = new ClassDefinition[this.classesToReload.size()];
