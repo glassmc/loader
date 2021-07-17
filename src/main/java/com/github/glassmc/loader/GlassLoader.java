@@ -35,7 +35,7 @@ public class GlassLoader {
     private final Map<Class<?>, Object> interfaces = new HashMap<>();
 
     private GlassLoader() {
-        this.registerVirtualShard(new ShardSpecification("loader", "0.3.2"));
+        this.registerVirtualShard(new ShardSpecification("loader", "0.4.0"));
     }
 
     public void appendExternalShards() {
@@ -54,6 +54,7 @@ public class GlassLoader {
         }
     }
 
+    @SuppressWarnings("unused")
     public void removeShard(File shardFile) {
         try {
             this.invokeClassloaderMethod("removeURL", shardFile.toURI().toURL());
@@ -66,7 +67,7 @@ public class GlassLoader {
         try {
             List<ShardSpecification> unloadedShards = new ArrayList<>(this.registeredShards);
 
-            Enumeration<URL> shardMetas = this.classLoader.getResources("glass/shardMeta.txt");
+            Enumeration<URL> shardMetas = this.classLoader.getResources("glass/shard.meta");
             while(shardMetas.hasMoreElements()) {
                 URL url = shardMetas.nextElement();
                 String shardID = IOUtils.toString(url.openStream());
@@ -90,7 +91,7 @@ public class GlassLoader {
 
         try {
             List<ShardInfo> unloadedShards = new ArrayList<>(this.shards);
-            Enumeration<URL> shardMetas = this.classLoader.getResources("glass/shardMeta.txt");
+            Enumeration<URL> shardMetas = this.classLoader.getResources("glass/shard.meta");
             while(shardMetas.hasMoreElements()) {
                 URL url = shardMetas.nextElement();
                 String shardID = IOUtils.toString(url.openStream());
@@ -159,16 +160,16 @@ public class GlassLoader {
         while(i < filteredListeners.size()) {
             Map.Entry<ShardInfo, Class<? extends Listener>> listener = filteredListeners.get(i);
             boolean canLoad = true;
-            for(ShardSpecification dependency : listener.getKey().getDependencies()) {
+            for(ShardSpecification shardSpecification : listener.getKey().getEnvironment().getHas()) {
                 boolean satisfied = true;
                 for(Map.Entry<ShardInfo, Class<? extends Listener>> listener1 : filteredListeners) {
-                    if(dependency.isSatisfied(listener1.getKey().getSpecification())) {
+                    if(shardSpecification.isSatisfied(listener1.getKey().getSpecification())) {
                         satisfied = false;
                     }
                 }
 
                 for(ShardSpecification specification : executedListeners) {
-                    if(dependency.isSatisfied(specification)) {
+                    if(shardSpecification.isSatisfied(specification)) {
                         satisfied = true;
                     }
                 }
@@ -211,6 +212,8 @@ public class GlassLoader {
             String version = (String) shardInfoTOML.get("version");
             ShardSpecification specification = new ShardSpecification(id, version);
 
+            String namespace = (String) shardInfoTOML.get("namespace");
+
             TomlTable listenersTOML = (TomlTable) shardInfoTOML.getOrDefault("listeners", new TomlTable());
             Map<String, List<Class<? extends Listener>>> listeners = new HashMap<>();
             for(Map.Entry<String, Object> entry : listenersTOML.entrySet()) {
@@ -218,8 +221,12 @@ public class GlassLoader {
                 listeners.put(hook, new ArrayList<>());
                 List<String> hookListeners = (List<String>) listenersTOML.get(hook);
                 for(String hookListener : hookListeners) {
+                    if(namespace != null) {
+                        hookListener = namespace + "." + hookListener;
+                    }
+
                     try {
-                        Class<? extends Listener> listenerClass = (Class<? extends Listener>) Class.forName((hookListener));
+                        Class<? extends Listener> listenerClass = (Class<? extends Listener>) Class.forName(hookListener);
                         listeners.get(hook).add(listenerClass);
                     } catch (ClassNotFoundException e) {
                         e.printStackTrace();
@@ -227,12 +234,22 @@ public class GlassLoader {
                 }
             }
 
-            TomlTable dependenciesTOML = (TomlTable) shardInfoTOML.getOrDefault("dependencies", new TomlTable());
-            List<ShardSpecification> dependencies = new ArrayList<>();
-            for(Map.Entry<String, Object> entry : dependenciesTOML.entrySet()) {
-                String dependencyID = entry.getKey();
-                String dependencyVersion = (String) dependenciesTOML.get(dependencyID);
-                dependencies.add(new ShardSpecification(dependencyID, dependencyVersion));
+            TomlTable environmentTOML = (TomlTable) shardInfoTOML.getOrDefault("environment", new TomlTable());
+
+            TomlTable hasTOML = (TomlTable) environmentTOML.getOrDefault("has", new TomlTable());
+            List<ShardSpecification> has = new ArrayList<>();
+            for(Map.Entry<String, Object> shard : hasTOML.entrySet()) {
+                String shardID = shard.getKey();
+                String shardVersion = (String) shard.getValue();
+                has.add(new ShardSpecification(shardID, shardVersion));
+            }
+
+            TomlTable lacksTOML = (TomlTable) environmentTOML.getOrDefault("lacks", new TomlTable());
+            List<ShardSpecification> lacks = new ArrayList<>();
+            for(Map.Entry<String, Object> shard : lacksTOML.entrySet()) {
+                String shardID = shard.getKey();
+                String shardVersion = (String) shard.getValue();
+                lacks.add(new ShardSpecification(shardID, shardVersion));
             }
 
             List<String> implementationsList = (List<String>) shardInfoTOML.getOrDefault("implementations", new ArrayList<>());
@@ -244,10 +261,10 @@ public class GlassLoader {
                 }
             }
 
-            for(ShardSpecification dependency : dependencies) {
+            for(ShardSpecification shardSpecification : has) {
                 boolean satisfied = false;
                 for(ShardSpecification shard : this.registeredShards) {
-                    if(dependency.isSatisfied(shard)) {
+                    if(shardSpecification.isSatisfied(shard)) {
                         satisfied = true;
                     }
                 }
@@ -257,7 +274,20 @@ public class GlassLoader {
                 }
             }
 
-            return new ShardInfo(specification, listeners, dependencies, implementations);
+            for(ShardSpecification shardSpecification : lacks) {
+                boolean satisfied = true;
+                for(ShardSpecification shard : this.registeredShards) {
+                    if(shardSpecification.isSatisfied(shard)) {
+                        satisfied = false;
+                    }
+                }
+
+                if(!satisfied) {
+                    return null;
+                }
+            }
+
+            return new ShardInfo(specification, listeners, new ShardInfo.Environment(has, lacks), implementations);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -283,10 +313,12 @@ public class GlassLoader {
         this.virtualShards.add(specification);
     }
 
+    @SuppressWarnings("unused")
     public void registerAPI(Object api) {
         this.apis.add(api);
     }
 
+    @SuppressWarnings("unused")
     public <T> T getAPI(Class<T> clazz) {
         for(Object api : this.apis) {
             if(clazz.isInstance(api)) {
@@ -296,22 +328,27 @@ public class GlassLoader {
         return null;
     }
 
+    @SuppressWarnings("unused")
     public <T> void registerInterface(Class<T> interfaceClass, T implementer) {
         this.interfaces.put(interfaceClass, implementer);
     }
 
+    @SuppressWarnings("unused")
     public <T> T getInterface(Class<T> interfaceClass) {
         return interfaceClass.cast(this.interfaces.get(interfaceClass));
     }
 
+    @SuppressWarnings("unused")
     public void registerTransformer(Class<? extends ITransformer> transformer) {
         this.invokeClassloaderMethod("addTransformer", transformer);
     }
 
+    @SuppressWarnings("unused")
     public void unregisterTransformer(Class<? extends ITransformer> transformer) {
         this.invokeClassloaderMethod("removeTransformer", transformer);
     }
 
+    @SuppressWarnings("unused")
     public void registerReloadClass(String name) {
         this.invokeClassloaderMethod("addReloadClass", name);
     }
@@ -334,14 +371,17 @@ public class GlassLoader {
         }
     }
 
+    @SuppressWarnings("unused")
     public List<ShardSpecification> getRegisteredShards() {
         return registeredShards;
     }
 
+    @SuppressWarnings("unused")
     public List<ShardInfo> getShards() {
         return shards;
     }
 
+    @SuppressWarnings("unused")
     public File getShardsFile() {
         return shardsFile;
     }

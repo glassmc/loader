@@ -7,15 +7,15 @@ public class ShardInfo {
 
     private final ShardSpecification specification;
     private final Map<String, List<Class<? extends Listener>>> listeners;
-    private final List<ShardSpecification> dependencies;
+    private final Environment environment;
     private final List<ShardInfo> implementations;
 
     private ShardInfo parent;
 
-    public ShardInfo(ShardSpecification specification, Map<String, List<Class<? extends Listener>>> listeners, List<ShardSpecification> dependencies, List<ShardInfo> implementations) {
+    public ShardInfo(ShardSpecification specification, Map<String, List<Class<? extends Listener>>> listeners, Environment environment, List<ShardInfo> implementations) {
         this.specification = specification;
         this.listeners = listeners;
-        this.dependencies = dependencies;
+        this.environment = environment;
         this.implementations = implementations;
 
         for(ShardInfo implementation : this.implementations) {
@@ -31,8 +31,8 @@ public class ShardInfo {
         return this.listeners;
     }
 
-    public List<ShardSpecification> getDependencies() {
-        return this.dependencies;
+    public Environment getEnvironment() {
+        return this.environment;
     }
 
     public List<ShardInfo> getImplementations() {
@@ -46,4 +46,24 @@ public class ShardInfo {
     public ShardInfo getParent() {
         return parent;
     }
+
+    public static class Environment {
+
+        private final List<ShardSpecification> has, lacks;
+
+        public Environment(List<ShardSpecification> has, List<ShardSpecification> lacks) {
+            this.has = has;
+            this.lacks = lacks;
+        }
+
+        public List<ShardSpecification> getHas() {
+            return has;
+        }
+
+        public List<ShardSpecification> getLacks() {
+            return lacks;
+        }
+
+    }
+
 }
