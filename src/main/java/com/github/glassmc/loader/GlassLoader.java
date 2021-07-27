@@ -96,6 +96,8 @@ public class GlassLoader {
         try {
             List<ShardInfo> unloadedShards = new ArrayList<>(this.shards);
             Enumeration<URL> shardMetas = this.classLoader.getResources("glass/shard.meta");
+
+            List<ShardInfo> newShards = new ArrayList<>();
             while(shardMetas.hasMoreElements()) {
                 URL url = shardMetas.nextElement();
                 String shardID = IOUtils.toString(url.openStream());
@@ -106,12 +108,14 @@ public class GlassLoader {
                 if(!alreadyLoaded) {
                     ShardInfo shardInfo = this.loadShardInfo("glass/" + shardID + "/info.toml", null);
                     if(shardInfo != null) {
-                        this.shards.add(shardInfo);
+                        newShards.add(shardInfo);
                         this.registerListeners(shardInfo);
-                        this.runHooks("initialize", Collections.singletonList(shardInfo));
                     }
                 }
             }
+
+            this.shards.addAll(newShards);
+            this.runHooks("initialize", newShards);
 
             for(ShardInfo shardInfo : unloadedShards) {
                 this.shards.remove(shardInfo);
