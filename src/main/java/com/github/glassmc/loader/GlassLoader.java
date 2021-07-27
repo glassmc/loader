@@ -35,7 +35,11 @@ public class GlassLoader {
     private final Map<Class<?>, Object> interfaces = new HashMap<>();
 
     private GlassLoader() {
-        this.registerVirtualShard(new ShardSpecification("loader", "0.4.0"));
+        this.registerVirtualShard(new ShardSpecification("loader", "0.4.1"));
+
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            this.runHooks("terminate");
+        }));
     }
 
     public void appendExternalShards() {
