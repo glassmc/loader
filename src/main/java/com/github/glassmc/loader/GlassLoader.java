@@ -35,7 +35,7 @@ public class GlassLoader {
     private final Map<Class<?>, Object> interfaces = new HashMap<>();
 
     private GlassLoader() {
-        this.registerVirtualShard(new ShardSpecification("loader", "0.4.2"));
+        this.registerVirtualShard(new ShardSpecification("loader", "0.4.3"));
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             this.runHooks("terminate");
@@ -171,7 +171,7 @@ public class GlassLoader {
             for(ShardSpecification shardSpecification : getHas(listener.getKey())) {
                 boolean satisfied = true;
                 for(Map.Entry<ShardInfo, Class<? extends Listener>> listener1 : filteredListeners) {
-                    if(shardSpecification.isSatisfied(listener1.getKey().getSpecification())) {
+                    if(shardSpecification.isSatisfied0(listener1.getKey().getSpecification())) {
                         satisfied = false;
                     }
                 }
