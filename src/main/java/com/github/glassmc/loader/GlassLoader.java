@@ -171,7 +171,7 @@ public class GlassLoader {
             for(ShardSpecification shardSpecification : getHas(listener.getKey())) {
                 boolean satisfied = true;
                 for(Map.Entry<ShardInfo, Class<? extends Listener>> listener1 : filteredListeners) {
-                    if(shardSpecification.isSatisfied0(listener1.getKey().getSpecification())) {
+                    if(shardSpecification.isSatisfied(listener1.getKey().getSpecification())) {
                         satisfied = false;
                     }
                 }
