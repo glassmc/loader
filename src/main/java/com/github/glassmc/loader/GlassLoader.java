@@ -168,7 +168,7 @@ public class GlassLoader {
         while(i < filteredListeners.size()) {
             Map.Entry<ShardInfo, Class<? extends Listener>> listener = filteredListeners.get(i);
             boolean canLoad = true;
-            for(ShardSpecification shardSpecification : listener.getKey().getEnvironment().getHas()) {
+            for(ShardSpecification shardSpecification : getHas(listener.getKey())) {
                 boolean satisfied = true;
                 for(Map.Entry<ShardInfo, Class<? extends Listener>> listener1 : filteredListeners) {
                     if(shardSpecification.isSatisfied(listener1.getKey().getSpecification())) {
@@ -201,6 +201,15 @@ public class GlassLoader {
                 filteredListeners.add(listener);
             }
         }
+    }
+
+    private List<ShardSpecification> getHas(ShardInfo shardInfo) {
+        List<ShardSpecification> has = new ArrayList<>();
+        has.addAll(shardInfo.getEnvironment().getHas());
+        if(shardInfo.getParent() != null) {
+            has.addAll(getHas(shardInfo.getParent()));
+        }
+        return has;
     }
 
     private ShardInfo getMainParent(ShardInfo shardInfo) {
