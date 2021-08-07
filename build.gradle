@@ -19,7 +19,7 @@ plugins {
 apply plugin: 'kiln-main'
 
 group 'com.github.glassmc'
-version '0.4.3'
+version '0.4.4'
 
 sourceCompatibility = targetCompatibility = 1.8
 
@@ -30,7 +30,6 @@ repositories {
 dependencies {
     implementation 'commons-io:commons-io:2.4'
     implementation 'com.github.jezza:toml:1.2-java-8'
-    implementation 'net.bytebuddy:byte-buddy-agent:1.11.6'
     implementation 'org.ow2.asm:asm-tree:9.2'
 
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.7.2'

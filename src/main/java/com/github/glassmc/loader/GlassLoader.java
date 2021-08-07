@@ -35,11 +35,9 @@ public class GlassLoader {
     private final Map<Class<?>, Object> interfaces = new HashMap<>();
 
     private GlassLoader() {
-        this.registerVirtualShard(new ShardSpecification("loader", "0.4.3"));
+        this.registerVirtualShard(new ShardSpecification("loader", "0.4.4"));
 
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            this.runHooks("terminate");
-        }));
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> this.runHooks("terminate")));
     }
 
     public void appendExternalShards() {
@@ -125,8 +123,6 @@ public class GlassLoader {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-        this.reloadClasses();
     }
 
     private void registerListeners(ShardInfo shardInfo) {
@@ -204,8 +200,7 @@ public class GlassLoader {
     }
 
     private List<ShardSpecification> getHas(ShardInfo shardInfo) {
-        List<ShardSpecification> has = new ArrayList<>();
-        has.addAll(shardInfo.getEnvironment().getHas());
+        List<ShardSpecification> has = new ArrayList<>(shardInfo.getEnvironment().getHas());
         if(shardInfo.getParent() != null) {
             has.addAll(getHas(shardInfo.getParent()));
         }
@@ -363,15 +358,6 @@ public class GlassLoader {
     @SuppressWarnings("unused")
     public void unregisterTransformer(Class<? extends ITransformer> transformer) {
         this.invokeClassloaderMethod("removeTransformer", transformer);
-    }
-
-    @SuppressWarnings("unused")
-    public void registerReloadClass(String name) {
-        this.invokeClassloaderMethod("addReloadClass", name);
-    }
-
-    public void reloadClasses() {
-        this.invokeClassloaderMethod("reloadClasses");
     }
 
     private void invokeClassloaderMethod(String name, Object... args) {

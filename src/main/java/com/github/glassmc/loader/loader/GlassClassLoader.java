@@ -1,13 +1,9 @@
 package com.github.glassmc.loader.loader;
 
-import net.bytebuddy.agent.ByteBuddyAgent;
 import org.apache.commons.io.IOUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.instrument.ClassDefinition;
-import java.lang.instrument.Instrumentation;
-import java.lang.instrument.UnmodifiableClassException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URL;
@@ -19,9 +15,6 @@ public class GlassClassLoader extends URLClassLoader {
     private final List<Object> transformers = new ArrayList<>();
     private final Method transformMethod;
 
-    private final List<String> classesToReload = new ArrayList<>();
-    private final Instrumentation instrumentation;
-
     private final Map<String, Class<?>> cache = new HashMap<>();
 
     private final List<URL> urls = new ArrayList<>();
@@ -30,14 +23,6 @@ public class GlassClassLoader extends URLClassLoader {
         super(new URL[0], GlassClassLoader.class.getClassLoader());
         this.urls.addAll(Arrays.asList(super.getURLs()));
         this.transformMethod = this.loadClass("com.github.glassmc.loader.loader.ITransformer").getMethod("transform", String.class, byte[].class);
-
-        Instrumentation instrumentation;
-        try {
-            instrumentation = ByteBuddyAgent.install();
-        } catch(IllegalStateException e) {
-            instrumentation = null;
-        }
-        this.instrumentation = instrumentation;
     }
 
     @Override
@@ -139,35 +124,6 @@ public class GlassClassLoader extends URLClassLoader {
     @SuppressWarnings("unused")
     public void removeTransformer(Class<?> transformerClass) {
         this.transformers.removeIf(transformer -> transformer.getClass().equals(transformerClass));
-    }
-
-    @SuppressWarnings("unused")
-    public void addReloadClass(String className) {
-        this.classesToReload.add(className);
-    }
-
-    @SuppressWarnings("unused")
-    public void reloadClasses() throws UnsupportedOperationException {
-        if(this.instrumentation != null) {
-            ClassDefinition[] definitions = new ClassDefinition[this.classesToReload.size()];
-            for(int i = 0; i < this.classesToReload.size(); i++) {
-                try {
-                    Class<?> clazz = this.loadClass(this.classesToReload.get(i));
-                    definitions[i] = new ClassDefinition(clazz, this.getModifiedBytes(clazz.getName()));
-                } catch(ClassNotFoundException e) {
-                    e.printStackTrace();
-                }
-            }
-            try {
-                instrumentation.redefineClasses(definitions);
-            } catch(ClassNotFoundException | UnmodifiableClassException e) {
-                e.printStackTrace();
-            }
-        }
-        this.classesToReload.clear();
-        if(this.instrumentation == null) {
-            throw new UnsupportedOperationException("Agent not supported in currently environment!");
-        }
     }
 
 }
