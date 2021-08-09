@@ -34,8 +34,10 @@ public class GlassLoader {
     private final List<Object> apis = new ArrayList<>();
     private final Map<Class<?>, Object> interfaces = new HashMap<>();
 
+    private String[] programArguments;
+
     private GlassLoader() {
-        this.registerVirtualShard(new ShardSpecification("loader", "0.4.4"));
+        this.registerVirtualShard(new ShardSpecification("loader", "0.5.0"));
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> this.runHooks("terminate")));
     }
@@ -325,6 +327,15 @@ public class GlassLoader {
         this.virtualShards.add(specification);
     }
 
+    public void setProgramArguments(String[] programArguments) {
+        this.programArguments = programArguments;
+    }
+
+    @SuppressWarnings("unused")
+    public String[] getProgramArguments() {
+        return programArguments;
+    }
+
     @SuppressWarnings("unused")
     public void registerAPI(Object api) {
         this.apis.add(api);
@@ -353,11 +364,6 @@ public class GlassLoader {
     @SuppressWarnings("unused")
     public void registerTransformer(Class<? extends ITransformer> transformer) {
         this.invokeClassloaderMethod("addTransformer", transformer);
-    }
-
-    @SuppressWarnings("unused")
-    public void unregisterTransformer(Class<? extends ITransformer> transformer) {
-        this.invokeClassloaderMethod("removeTransformer", transformer);
     }
 
     private void invokeClassloaderMethod(String name, Object... args) {

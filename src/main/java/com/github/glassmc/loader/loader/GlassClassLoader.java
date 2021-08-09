@@ -15,8 +15,6 @@ public class GlassClassLoader extends URLClassLoader {
     private final List<Object> transformers = new ArrayList<>();
     private final Method transformMethod;
 
-    private final Map<String, Class<?>> cache = new HashMap<>();
-
     private final List<URL> urls = new ArrayList<>();
 
     public GlassClassLoader() throws ClassNotFoundException, NoSuchMethodException {
@@ -28,14 +26,13 @@ public class GlassClassLoader extends URLClassLoader {
     @Override
     public Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
         if(name.startsWith("java.") || name.startsWith("jdk.internal.") || name.startsWith("sun.") || name.startsWith("com.sun.") || name.startsWith("javax.") || name.startsWith("org.xml.") || name.startsWith("org.w3c.")) {
-            return this.getParent().loadClass(name);
+            return super.loadClass(name, resolve);
         }
 
-        Class<?> clazz = this.cache.get(name);
+        Class<?> clazz = this.findLoadedClass(name);
         if(clazz == null) {
             byte[] data = this.getModifiedBytes(name);
             clazz = defineClass(name, data, 0, data.length);
-            this.cache.put(name, clazz);
         }
         return clazz;
     }
@@ -119,11 +116,6 @@ public class GlassClassLoader extends URLClassLoader {
         } catch (InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
             e.printStackTrace();
         }
-    }
-
-    @SuppressWarnings("unused")
-    public void removeTransformer(Class<?> transformerClass) {
-        this.transformers.removeIf(transformer -> transformer.getClass().equals(transformerClass));
     }
 
 }

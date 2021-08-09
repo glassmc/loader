@@ -10,6 +10,7 @@ import java.util.Arrays;
 public class GlassClientLauncher {
 
     public static void main(String[] args) {
+        GlassLoader.getInstance().setProgramArguments(args);
         GlassLoader.getInstance().registerVirtualShard(new ShardSpecification("client", args[Arrays.asList(args).indexOf("--version") + 1]));
         GlassLoader.getInstance().appendExternalShards();
 
