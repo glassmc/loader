@@ -1,5 +1,7 @@
 package com.github.glassmc.loader;
 
+import com.github.glassmc.loader.exception.NoSuchInterfaceException;
+import com.github.glassmc.loader.exception.NoSuchShardException;
 import com.github.jezza.Toml;
 import com.github.jezza.TomlTable;
 import com.github.glassmc.loader.loader.ITransformer;
@@ -67,12 +69,17 @@ public class GlassLoader {
         }
     }
 
-    public void loadShards() {
+    public void loadUpdateShards() {
+        this.loadUpdateRegisteredShards();
+        this.loadUpdateShardInfos();
+    }
+
+    private void loadUpdateRegisteredShards() {
         try {
             List<ShardSpecification> unloadedShards = new ArrayList<>(this.registeredShards);
 
             Enumeration<URL> shardMetas = this.classLoader.getResources("glass/shard.meta");
-            while(shardMetas.hasMoreElements()) {
+            while (shardMetas.hasMoreElements()) {
                 URL url = shardMetas.nextElement();
                 String shardID = IOUtils.toString(url.openStream());
 
@@ -92,7 +99,9 @@ public class GlassLoader {
         } catch(IOException e) {
             e.printStackTrace();
         }
+    }
 
+    private void loadUpdateShardInfos() {
         try {
             List<ShardInfo> unloadedShards = new ArrayList<>(this.shards);
             Enumeration<URL> shardMetas = this.classLoader.getResources("glass/shard.meta");
@@ -220,7 +229,10 @@ public class GlassLoader {
     private ShardInfo loadShardInfo(String path, String overrideID) {
         try {
             InputStream shardInfoStream = this.classLoader.getResourceAsStream(path);
-            TomlTable shardInfoTOML = Toml.from(Objects.requireNonNull(shardInfoStream));
+            if (shardInfoStream == null) {
+                throw new NoSuchShardException("Failed to load shard at path: " + path + ".");
+            }
+            TomlTable shardInfoTOML = Toml.from(shardInfoStream);
 
             String id = (String) shardInfoTOML.getOrDefault("id", overrideID);
             String version = (String) shardInfoTOML.get("version");
@@ -311,7 +323,11 @@ public class GlassLoader {
     private ShardSpecification loadShardSpecification(String path) {
         try {
             InputStream shardInfoStream = this.classLoader.getResourceAsStream(path);
-            TomlTable shardInfoTOML = Toml.from(Objects.requireNonNull(shardInfoStream));
+            if (shardInfoStream == null) {
+                throw new NoSuchShardException("Failed to load shard at path: " + path + ".");
+            }
+
+            TomlTable shardInfoTOML = Toml.from(shardInfoStream);
 
             String id = (String) shardInfoTOML.get("id");
             String version = (String) shardInfoTOML.get("version");
@@ -358,7 +374,11 @@ public class GlassLoader {
 
     @SuppressWarnings("unused")
     public <T> T getInterface(Class<T> interfaceClass) {
-        return interfaceClass.cast(this.interfaces.get(interfaceClass));
+        Object interfaceObject = this.interfaces.get(interfaceClass);
+        if (interfaceObject == null) {
+            throw new NoSuchInterfaceException(String.format("Interface of type %s requested, but not present", interfaceClass));
+        }
+        return interfaceClass.cast(interfaceObject);
     }
 
     @SuppressWarnings("unused")
