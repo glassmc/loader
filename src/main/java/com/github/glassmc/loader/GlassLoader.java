@@ -2,12 +2,12 @@ package com.github.glassmc.loader;
 
 import com.github.glassmc.loader.exception.NoSuchApiException;
 import com.github.glassmc.loader.exception.NoSuchInterfaceException;
+import com.github.glassmc.loader.util.GlassProperty;
 import com.github.glassmc.loader.util.ShardInfoParser;
 import com.github.glassmc.loader.loader.ITransformer;
 import org.apache.commons.io.IOUtils;
 
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
@@ -24,7 +24,9 @@ public class GlassLoader {
         return INSTANCE;
     }
 
-    private final File shardsFile = new File("shards");
+    private final Properties glassProperties = loadProperties();
+
+    private final File shardsHome = new File("shards");
     private final ClassLoader classLoader = GlassLoader.class.getClassLoader();
 
     private final List<ShardSpecification> registeredShards = new ArrayList<>();
@@ -40,12 +42,33 @@ public class GlassLoader {
     private GlassLoader() {
         this.registerVirtualShard(new ShardSpecification("loader", "0.6.0"));
 
+        Runtime.getRuntime().addShutdownHook(new Thread(this::saveProperties));
         Runtime.getRuntime().addShutdownHook(new Thread(() -> this.runHooks("terminate")));
     }
 
+    private Properties loadProperties() {
+        Properties properties = new Properties();
+        properties.setProperty("shardsFile", "shards");
+
+        try {
+            InputStream glassProperties = new FileInputStream("glass.properties");
+            properties.load(glassProperties);
+        } catch (IOException ignored) { }
+
+        return properties;
+    }
+
+    private void saveProperties() {
+        try {
+            this.glassProperties.store(new FileOutputStream("glass.properties"), null);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     public void appendExternalShards() {
-        if(this.shardsFile.exists()) {
-            for(File shard : Objects.requireNonNull(this.shardsFile.listFiles())) {
+        if(this.getShardsFile().exists()) {
+            for(File shard : Objects.requireNonNull(this.getShardsFile().listFiles())) {
                 this.appendShard(shard);
             }
         }
@@ -289,7 +312,19 @@ public class GlassLoader {
     }
 
     public File getShardsFile() {
-        return shardsFile;
+        return new File(this.glassProperties.getProperty(GlassProperty.SHARDS_FILE));
+    }
+
+    public File getShardsHome() {
+        return shardsHome;
+    }
+
+    public void setProperty(String key, String value) {
+        this.glassProperties.setProperty(key, value);
+    }
+
+    public String getProperty(String key) {
+        return this.glassProperties.getProperty(key);
     }
 
 }
