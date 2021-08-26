@@ -1,13 +1,14 @@
 buildscript {
     repositories {
         mavenCentral()
+        mavenLocal()
         maven {
             url = 'https://jitpack.io/'
         }
     }
 
     dependencies {
-        classpath 'com.github.glassmc:kiln:a7050b35ca'
+        classpath 'com.github.glassmc:kiln:0.5.4'
     }
 }
 

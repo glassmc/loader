@@ -1,4 +1,5 @@
 rootProject.name = 'loader'
 include(
-        ':impl:client'
+        ':impl:client',
+        ':impl:server'
 )
