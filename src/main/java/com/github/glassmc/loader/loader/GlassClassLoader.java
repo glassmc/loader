@@ -45,7 +45,7 @@ public class GlassClassLoader extends URLClassLoader {
 
         for(Object transformer : this.transformers) {
             try {
-                data = (byte[]) transformMethod.invoke(transformer, name, data);
+                data = (byte[]) transformMethod.invoke(transformer, name.replace(".", "/"), data);
             } catch(IllegalAccessException | InvocationTargetException e) {
                 e.printStackTrace();
             }
