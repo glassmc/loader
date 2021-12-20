@@ -7,7 +7,7 @@ buildscript {
     }
 
     dependencies {
-        classpath 'com.github.glassmc:kiln:v0.5.5'
+        classpath 'com.github.glassmc:kiln:v0.5.13'
     }
 }
 
@@ -19,7 +19,7 @@ plugins {
 apply plugin: 'kiln-main'
 
 group 'com.github.glassmc'
-version '0.6.2'
+version '0.6.3'
 
 sourceCompatibility = targetCompatibility = 1.8
 

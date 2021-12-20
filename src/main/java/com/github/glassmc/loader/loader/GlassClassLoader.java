@@ -13,6 +13,7 @@ import java.util.*;
 public class GlassClassLoader extends URLClassLoader {
 
     private final List<Object> transformers = new ArrayList<>();
+    private final Method canTransformMethod;
     private final Method transformMethod;
 
     private final List<URL> urls = new ArrayList<>();
@@ -20,6 +21,7 @@ public class GlassClassLoader extends URLClassLoader {
     public GlassClassLoader() throws ClassNotFoundException, NoSuchMethodException {
         super(new URL[0], GlassClassLoader.class.getClassLoader());
         this.urls.addAll(Arrays.asList(super.getURLs()));
+        this.canTransformMethod = this.loadClass("com.github.glassmc.loader.loader.ITransformer").getMethod("canTransform", String.class);
         this.transformMethod = this.loadClass("com.github.glassmc.loader.loader.ITransformer").getMethod("transform", String.class, byte[].class);
     }
 
@@ -44,8 +46,11 @@ public class GlassClassLoader extends URLClassLoader {
         }
 
         for(Object transformer : this.transformers) {
+            String formattedName = name.replace(".", "/");
             try {
-                data = (byte[]) transformMethod.invoke(transformer, name.replace(".", "/"), data);
+                if ((boolean) canTransformMethod.invoke(transformer, formattedName)) {
+                    data = (byte[]) transformMethod.invoke(transformer, formattedName, data);
+                }
             } catch(IllegalAccessException | InvocationTargetException e) {
                 e.printStackTrace();
             }

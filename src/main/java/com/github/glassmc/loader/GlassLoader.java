@@ -40,7 +40,7 @@ public class GlassLoader {
     private String[] programArguments;
 
     private GlassLoader() {
-        this.registerVirtualShard(new ShardSpecification("loader", "0.6.0"));
+        this.registerVirtualShard(new ShardSpecification("loader", "0.6.3"));
 
         Runtime.getRuntime().addShutdownHook(new Thread(this::saveProperties));
         Runtime.getRuntime().addShutdownHook(new Thread(() -> this.runHooks("terminate")));
