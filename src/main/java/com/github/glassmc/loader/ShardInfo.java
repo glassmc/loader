@@ -6,13 +6,13 @@ import java.util.Map;
 public class ShardInfo {
 
     private final ShardSpecification specification;
-    private final Map<String, List<Class<? extends Listener>>> listeners;
+    private final Map<String, List<String>> listeners;
     private final Environment environment;
     private final List<ShardInfo> implementations;
 
     private ShardInfo parent;
 
-    public ShardInfo(ShardSpecification specification, Map<String, List<Class<? extends Listener>>> listeners, Environment environment, List<ShardInfo> implementations) {
+    public ShardInfo(ShardSpecification specification, Map<String, List<String>> listeners, Environment environment, List<ShardInfo> implementations) {
         this.specification = specification;
         this.listeners = listeners;
         this.environment = environment;
@@ -27,7 +27,7 @@ public class ShardInfo {
         return this.specification;
     }
 
-    public Map<String, List<Class<? extends Listener>>> getListeners() {
+    public Map<String, List<String>> getListeners() {
         return this.listeners;
     }
 

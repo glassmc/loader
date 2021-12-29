@@ -34,7 +34,7 @@ public class ShardInfoParser {
             String namespace = (String) shardInfoTOML.get("namespace");
 
             TomlTable listenersTOML = (TomlTable) shardInfoTOML.getOrDefault("listeners", new TomlTable());
-            Map<String, List<Class<? extends Listener>>> listeners = new HashMap<>();
+            Map<String, List<String>> listeners = new HashMap<>();
             for (Map.Entry<String, Object> entry : listenersTOML.entrySet()) {
                 String hook = entry.getKey();
                 listeners.put(hook, new ArrayList<>());
@@ -46,21 +46,11 @@ public class ShardInfoParser {
                             hookListener = String.format("%s.%s", namespace, hookListener);
                         }
 
-                        try {
-                            Class<? extends Listener> listenerClass = (Class<? extends Listener>) Class.forName(hookListener);
-                            listeners.get(hook).add(listenerClass);
-                        } catch (ClassNotFoundException e) {
-                            throw new NoSuchListenerException(hookListener, path);
-                        }
+                        listeners.get(hook).add(hookListener);
                     }
                 } else if (hookListeners instanceof String) {
                     String hookListener = String.format("%s.%s", namespace, hookListeners);
-                    try {
-                        Class<? extends Listener> listenerClass = (Class<? extends Listener>) Class.forName(hookListener);
-                        listeners.get(hook).add(listenerClass);
-                    } catch (ClassNotFoundException e) {
-                        throw new NoSuchListenerException(hookListener, path);
-                    }
+                    listeners.get(hook).add(hookListener);
                 }
             }
 

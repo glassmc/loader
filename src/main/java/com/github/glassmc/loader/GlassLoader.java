@@ -33,7 +33,7 @@ public class GlassLoader {
     private final List<ShardSpecification> virtualShards = new ArrayList<>();
     private final List<ShardInfo> shards = new ArrayList<>();
 
-    private final Map<String, List<Map.Entry<ShardInfo, Class<? extends Listener>>>> listeners = new HashMap<>();
+    private final Map<String, List<Map.Entry<ShardInfo, String>>> listeners = new HashMap<>();
     private final List<Object> apis = new ArrayList<>();
     private final Map<Class<?>, Object> interfaces = new HashMap<>();
 
@@ -146,6 +146,7 @@ public class GlassLoader {
 
             this.shards.addAll(newShards);
             this.runHooks("initialize", newShards);
+            System.out.println(newShards);
 
             for(ShardInfo shardInfo : unloadedShards) {
                 this.shards.remove(shardInfo);
@@ -162,9 +163,9 @@ public class GlassLoader {
             this.registerListeners(implementation);
         }
 
-        Map<String, List<Class<? extends Listener>>> listeners = shardInfo.getListeners();
+        Map<String, List<String>> listeners = shardInfo.getListeners();
         for(String hook : listeners.keySet()) {
-            for(Class<? extends Listener> listener : listeners.get(hook)) {
+            for(String listener : listeners.get(hook)) {
                 this.listeners.computeIfAbsent(hook, k -> new ArrayList<>()).add(new AbstractMap.SimpleEntry<>(shardInfo, listener));
             }
         }
@@ -175,7 +176,7 @@ public class GlassLoader {
             this.unregisterListeners(implementation);
         }
 
-        for(Map.Entry<String, List<Map.Entry<ShardInfo, Class<? extends Listener>>>> listener : listeners.entrySet()) {
+        for(Map.Entry<String, List<Map.Entry<ShardInfo, String>>> listener : listeners.entrySet()) {
             listener.getValue().removeIf(entry -> entry.getKey().equals(shardInfo));
         }
     }
@@ -186,19 +187,19 @@ public class GlassLoader {
 
     public void runHooks(String hook, List<ShardInfo> targets) {
         List<ShardSpecification> executedListeners = new ArrayList<>();
-        List<Map.Entry<ShardInfo, Class<? extends Listener>>> listeners = new ArrayList<>(this.listeners.getOrDefault(hook, new ArrayList<>()));
-        List<Map.Entry<ShardInfo, Class<? extends Listener>>> filteredListeners = listeners
+        List<Map.Entry<ShardInfo, String>> listeners = new ArrayList<>(this.listeners.getOrDefault(hook, new ArrayList<>()));
+        List<Map.Entry<ShardInfo, String>> filteredListeners = listeners
                 .stream()
                 .filter(listener -> targets.contains(this.getMainParent(listener.getKey())))
                 .collect(Collectors.toList());
 
         int i = 0;
         while(i < filteredListeners.size()) {
-            Map.Entry<ShardInfo, Class<? extends Listener>> listener = filteredListeners.get(i);
+            Map.Entry<ShardInfo, String> listener = filteredListeners.get(i);
             boolean canLoad = true;
             for(ShardSpecification shardSpecification : getHas(listener.getKey())) {
                 boolean satisfied = true;
-                for(Map.Entry<ShardInfo, Class<? extends Listener>> listener1 : filteredListeners) {
+                for(Map.Entry<ShardInfo, String> listener1 : filteredListeners) {
                     if(shardSpecification.isSatisfied(listener1.getKey().getSpecification())) {
                         satisfied = false;
                     }
@@ -218,9 +219,9 @@ public class GlassLoader {
             if(canLoad) {
                 executedListeners.add(listener.getKey().getSpecification());
                 try {
-                    Listener listener1 = listener.getValue().getConstructor().newInstance();
+                    Listener listener1 = (Listener) Class.forName(listener.getValue()).getConstructor().newInstance();
                     listener1.run();
-                } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
+                } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException | ClassNotFoundException e) {
                     e.printStackTrace();
                 }
                 i++;
