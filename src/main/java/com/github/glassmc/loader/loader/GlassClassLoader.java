@@ -45,11 +45,6 @@ public class GlassClassLoader extends URLClassLoader {
             throw new ClassNotFoundException(name);
         }
 
-        if (name.equals("axu")) {
-            System.out.println(this.transformers);
-            new Exception().printStackTrace();
-        }
-
         for(Object transformer : this.transformers) {
             String formattedName = name.replace(".", "/");
             try {

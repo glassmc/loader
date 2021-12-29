@@ -146,7 +146,6 @@ public class GlassLoader {
 
             this.shards.addAll(newShards);
             this.runHooks("initialize", newShards);
-            System.out.println(newShards);
 
             for(ShardInfo shardInfo : unloadedShards) {
                 this.shards.remove(shardInfo);
