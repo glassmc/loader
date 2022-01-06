@@ -69,12 +69,12 @@ public class GlassLoader {
     public void appendExternalShards() {
         if(this.getShardsFile().exists()) {
             for(File shard : Objects.requireNonNull(this.getShardsFile().listFiles())) {
-                this.appendShard(shard);
+                this.addURL(shard);
             }
         }
     }
 
-    public void appendShard(File shardFile) {
+    public void addURL(File shardFile) {
         try {
             this.invokeClassloaderMethod("addURL", shardFile.toURI().toURL());
         } catch (MalformedURLException e) {
@@ -82,7 +82,7 @@ public class GlassLoader {
         }
     }
 
-    public void removeShard(File shardFile) {
+    public void removeURL(File shardFile) {
         try {
             this.invokeClassloaderMethod("removeURL", shardFile.toURI().toURL());
         } catch (MalformedURLException e) {
