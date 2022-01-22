@@ -16,25 +16,42 @@ public class GlassClassLoader extends URLClassLoader {
     private final Method canTransformMethod;
     private final Method transformMethod;
 
+    private final List<String> exclusions = new ArrayList<>();
+
     private final List<URL> urls = new ArrayList<>();
 
     public GlassClassLoader() throws ClassNotFoundException, NoSuchMethodException {
         super(new URL[0], GlassClassLoader.class.getClassLoader());
         this.urls.addAll(Arrays.asList(super.getURLs()));
+
+        this.exclusions.add("java.");
+        this.exclusions.add("jdk.internal.");
+        this.exclusions.add("javax.");
+
+        this.exclusions.add("sun.");
+        this.exclusions.add("com.sun.");
+        this.exclusions.add("org.xml.");
+        this.exclusions.add("org.w3c.");
+
+        this.exclusions.add("org.apache.");
+        this.exclusions.add("org.slf4j.");
+
         this.canTransformMethod = this.loadClass("com.github.glassmc.loader.loader.ITransformer").getMethod("canTransform", String.class);
         this.transformMethod = this.loadClass("com.github.glassmc.loader.loader.ITransformer").getMethod("transform", String.class, byte[].class);
     }
 
     @Override
-    public Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
-        if(name.startsWith("java.") || name.startsWith("jdk.internal.") || name.startsWith("sun.") || name.startsWith("com.sun.") || name.startsWith("javax.") || name.startsWith("org.xml.") || name.startsWith("org.w3c.")) {
-            return super.loadClass(name, resolve);
+    public Class<?> loadClass(String name) throws ClassNotFoundException {
+        for (String exclusion : this.exclusions) {
+            if (name.startsWith(exclusion)) {
+                return super.loadClass(name);
+            }
         }
 
-        Class<?> clazz = this.findLoadedClass(name);
+        Class<?> clazz = super.findLoadedClass(name);
         if(clazz == null) {
             byte[] data = this.getModifiedBytes(name);
-            clazz = defineClass(name, data, 0, data.length);
+            clazz = super.defineClass(name, data, 0, data.length);
         }
         return clazz;
     }
