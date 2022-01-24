@@ -12,6 +12,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -126,11 +127,14 @@ public class GlassLoader {
         try {
             List<ShardInfo> unloadedShards = new ArrayList<>(this.shards);
             Enumeration<URL> shardMetas = this.classLoader.getResources("glass/shard.meta");
+            List<String> parsedShardIds = new ArrayList<>();
 
             List<ShardInfo> newShards = new ArrayList<>();
             while(shardMetas.hasMoreElements()) {
                 URL url = shardMetas.nextElement();
-                String shardID = IOUtils.toString(url.openStream());
+                String shardID = IOUtils.toString(url.openStream(), StandardCharsets.UTF_8);
+                if (parsedShardIds.contains(shardID)) continue;
+                parsedShardIds.add(shardID);
 
                 unloadedShards.removeIf(info -> info.getSpecification().getID().equals(shardID));
 

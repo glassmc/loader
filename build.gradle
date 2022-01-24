@@ -1,13 +1,14 @@
 buildscript {
     repositories {
         mavenCentral()
+
         maven {
             url = 'https://jitpack.io/'
         }
     }
 
     dependencies {
-        classpath 'com.github.glassmc:kiln:v0.6.1'
+        classpath 'com.github.glassmc:kiln:v0.6.6'
     }
 }
 
@@ -19,7 +20,7 @@ plugins {
 apply plugin: 'kiln-main'
 
 group 'com.github.glassmc'
-version '0.6.5'
+version '0.6.7'
 
 sourceCompatibility = targetCompatibility = 1.8
 
@@ -28,12 +29,12 @@ repositories {
 }
 
 dependencies {
-    implementation 'commons-io:commons-io:2.4'
+    implementation 'commons-io:commons-io:2.11.0'
     implementation 'com.github.jezza:toml:1.2-java-8'
     implementation 'org.ow2.asm:asm-tree:9.2'
 
-    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.7.2'
-    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.7.2'
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.2'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.2'
 }
 
 test {

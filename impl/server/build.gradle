@@ -4,8 +4,8 @@ plugins {
 
 apply plugin: 'kiln-standard'
 
-group project.parent.group
-version project.parent.version
+group 'com.github.glassmc.loader'
+version project.parent.parent.version
 
 sourceCompatibility = targetCompatibility = 1.8
 
