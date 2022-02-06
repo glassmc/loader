@@ -1,10 +1,7 @@
 package com.github.glassmc.loader.client;
 
-import com.github.glassmc.loader.loader.GlassClassLoader;
+import com.github.glassmc.loader.impl.loader.GlassClassLoader;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 

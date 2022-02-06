@@ -1,6 +1,6 @@
-package com.github.glassmc.loader.loader;
+package com.github.glassmc.loader.api.loader;
 
-public interface ITransformer {
+public interface Transformer {
     boolean canTransform(String className);
     byte[] transform(String className, byte[] data);
 }

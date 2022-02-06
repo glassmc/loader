@@ -1,10 +1,12 @@
-package com.github.glassmc.loader;
+package com.github.glassmc.loader.impl;
 
-import com.github.glassmc.loader.exception.NoSuchApiException;
-import com.github.glassmc.loader.exception.NoSuchInterfaceException;
-import com.github.glassmc.loader.util.GlassProperty;
-import com.github.glassmc.loader.util.ShardInfoParser;
-import com.github.glassmc.loader.loader.ITransformer;
+import com.github.glassmc.loader.api.GlassLoader;
+import com.github.glassmc.loader.api.Listener;
+import com.github.glassmc.loader.impl.exception.NoSuchApiException;
+import com.github.glassmc.loader.impl.exception.NoSuchInterfaceException;
+import com.github.glassmc.loader.impl.util.GlassProperty;
+import com.github.glassmc.loader.impl.util.ShardInfoParser;
+import com.github.glassmc.loader.api.loader.Transformer;
 import org.apache.commons.io.IOUtils;
 
 import java.io.*;
@@ -17,18 +19,14 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @SuppressWarnings("unused")
-public class GlassLoader {
+public class GlassLoaderImpl implements GlassLoader {
 
-    private static final GlassLoader INSTANCE = new GlassLoader();
-
-    public static GlassLoader getInstance() {
-        return INSTANCE;
-    }
+    private static final GlassLoaderImpl INSTANCE = new GlassLoaderImpl();
 
     private final Properties glassProperties = loadProperties();
 
     private final File shardsHome = new File("shards");
-    private final ClassLoader classLoader = GlassLoader.class.getClassLoader();
+    private final ClassLoader classLoader = GlassLoaderImpl.class.getClassLoader();
 
     private final List<ShardSpecification> registeredShards = new ArrayList<>();
     private final List<ShardSpecification> virtualShards = new ArrayList<>();
@@ -40,7 +38,7 @@ public class GlassLoader {
 
     private String[] programArguments;
 
-    private GlassLoader() {
+    public GlassLoaderImpl() {
         this.registerVirtualShard(new ShardSpecification("loader", "0.6.3"));
 
         Runtime.getRuntime().addShutdownHook(new Thread(this::saveProperties));
@@ -103,7 +101,7 @@ public class GlassLoader {
             Enumeration<URL> shardMetas = this.classLoader.getResources("glass/shard.meta");
             while (shardMetas.hasMoreElements()) {
                 URL url = shardMetas.nextElement();
-                String shardID = IOUtils.toString(url.openStream());
+                String shardID = IOUtils.toString(url.openStream(), StandardCharsets.UTF_8);
 
                 unloadedShards.removeIf(info -> info.getID().equals(shardID));
 
@@ -184,6 +182,7 @@ public class GlassLoader {
         }
     }
 
+    @Override
     public void runHooks(String hook) {
         this.runHooks(hook, this.shards);
     }
@@ -256,18 +255,12 @@ public class GlassLoader {
         this.virtualShards.add(specification);
     }
 
-    public void setProgramArguments(String[] programArguments) {
-        this.programArguments = programArguments;
-    }
-
-    public String[] getProgramArguments() {
-        return programArguments;
-    }
-
+    @Override
     public void registerAPI(Object api) {
         this.apis.add(api);
     }
 
+    @Override
     public <T> T getAPI(Class<T> apiClass) {
         for(Object api : this.apis) {
             if(apiClass.isInstance(api)) {
@@ -277,10 +270,12 @@ public class GlassLoader {
         throw new NoSuchApiException(apiClass);
     }
 
+    @Override
     public <T> void registerInterface(Class<T> interfaceClass, T implementer) {
         this.interfaces.put(interfaceClass, implementer);
     }
 
+    @Override
     public <T> T getInterface(Class<T> interfaceClass) {
         Object interfaceObject = this.interfaces.get(interfaceClass);
         if (interfaceObject == null) {
@@ -289,7 +284,8 @@ public class GlassLoader {
         return interfaceClass.cast(interfaceObject);
     }
 
-    public void registerTransformer(Class<? extends ITransformer> transformer) {
+    @Override
+    public void registerTransformer(Class<? extends Transformer> transformer) {
         this.invokeClassloaderMethod("addTransformer", transformer);
     }
 
@@ -305,14 +301,6 @@ public class GlassLoader {
         } catch(NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
             e.printStackTrace();
         }
-    }
-
-    public List<ShardSpecification> getRegisteredShards() {
-        return registeredShards;
-    }
-
-    public List<ShardInfo> getShards() {
-        return shards;
     }
 
     public File getShardsFile() {

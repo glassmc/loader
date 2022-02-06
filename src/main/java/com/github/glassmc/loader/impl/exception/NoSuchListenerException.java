@@ -1,4 +1,4 @@
-package com.github.glassmc.loader.exception;
+package com.github.glassmc.loader.impl.exception;
 
 public class NoSuchListenerException extends RuntimeException {
 

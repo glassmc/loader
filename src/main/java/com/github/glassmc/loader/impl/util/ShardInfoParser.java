@@ -1,8 +1,8 @@
-package com.github.glassmc.loader.util;
+package com.github.glassmc.loader.impl.util;
 
-import com.github.glassmc.loader.ShardInfo;
-import com.github.glassmc.loader.ShardSpecification;
-import com.github.glassmc.loader.exception.NoSuchShardException;
+import com.github.glassmc.loader.impl.ShardInfo;
+import com.github.glassmc.loader.impl.ShardSpecification;
+import com.github.glassmc.loader.impl.exception.NoSuchShardException;
 import com.github.jezza.Toml;
 import com.github.jezza.TomlTable;
 

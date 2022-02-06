@@ -1,4 +1,4 @@
-package com.github.glassmc.loader;
+package com.github.glassmc.loader.impl;
 
 import java.util.ArrayList;
 import java.util.Arrays;

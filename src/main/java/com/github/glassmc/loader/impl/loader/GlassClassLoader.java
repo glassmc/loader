@@ -1,4 +1,4 @@
-package com.github.glassmc.loader.loader;
+package com.github.glassmc.loader.impl.loader;
 
 import org.apache.commons.io.IOUtils;
 
@@ -36,8 +36,8 @@ public class GlassClassLoader extends URLClassLoader {
         this.exclusions.add("org.apache.");
         this.exclusions.add("org.slf4j.");
 
-        this.canTransformMethod = this.loadClass("com.github.glassmc.loader.loader.ITransformer").getMethod("canTransform", String.class);
-        this.transformMethod = this.loadClass("com.github.glassmc.loader.loader.ITransformer").getMethod("transform", String.class, byte[].class);
+        this.canTransformMethod = this.loadClass("com.github.glassmc.loader.api.loader.Transformer").getMethod("canTransform", String.class);
+        this.transformMethod = this.loadClass("com.github.glassmc.loader.api.loader.Transformer").getMethod("transform", String.class, byte[].class);
     }
 
     @Override

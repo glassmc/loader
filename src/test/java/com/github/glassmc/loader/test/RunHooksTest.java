@@ -1,6 +1,7 @@
 package com.github.glassmc.loader.test;
 
-import com.github.glassmc.loader.GlassLoader;
+import com.github.glassmc.loader.api.GlassLoader;
+import com.github.glassmc.loader.impl.GlassLoaderImpl;
 import org.junit.jupiter.api.Test;
 
 public class RunHooksTest {

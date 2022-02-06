@@ -1,7 +1,8 @@
 package com.github.glassmc.loader.client;
 
-import com.github.glassmc.loader.GlassLoader;
-import com.github.glassmc.loader.ShardSpecification;
+import com.github.glassmc.loader.api.GlassLoader;
+import com.github.glassmc.loader.impl.GlassLoaderImpl;
+import com.github.glassmc.loader.impl.ShardSpecification;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -10,11 +11,11 @@ import java.util.Arrays;
 public class GlassClientLauncher {
 
     public static void main(String[] args) {
-        GlassLoader.getInstance().setProgramArguments(args);
-        GlassLoader.getInstance().registerVirtualShard(new ShardSpecification("client", args[Arrays.asList(args).indexOf("--version") + 1]));
-        GlassLoader.getInstance().appendExternalShards();
+        GlassLoaderImpl glassLoader = (GlassLoaderImpl) GlassLoader.getInstance();
+        glassLoader.registerVirtualShard(new ShardSpecification("client", args[Arrays.asList(args).indexOf("--version") + 1]));
+        glassLoader.appendExternalShards();
 
-        GlassLoader.getInstance().loadUpdateShards();
+        glassLoader.loadUpdateShards();
 
         try {
             Class<?> mainClass = Class.forName("net.minecraft.client.main.Main");
