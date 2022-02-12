@@ -1,16 +1,11 @@
 package com.github.glassmc.loader.api;
 
 import com.github.glassmc.loader.api.loader.Transformer;
-import com.github.glassmc.loader.impl.GlassLoaderImpl;
-import com.github.glassmc.loader.impl.ShardInfo;
-import com.github.glassmc.loader.impl.ShardSpecification;
 import org.apache.commons.io.IOUtils;
 
-import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 

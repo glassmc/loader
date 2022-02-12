@@ -1,12 +1,15 @@
 package com.github.glassmc.loader.impl;
 
 import com.github.glassmc.loader.api.GlassLoader;
+import com.github.glassmc.loader.api.InternalLoader;
 import com.github.glassmc.loader.api.Listener;
+import com.github.glassmc.loader.api.ShardInfo;
 import com.github.glassmc.loader.impl.exception.NoSuchApiException;
 import com.github.glassmc.loader.impl.exception.NoSuchInterfaceException;
-import com.github.glassmc.loader.impl.util.GlassProperty;
 import com.github.glassmc.loader.impl.util.ShardInfoParser;
 import com.github.glassmc.loader.api.loader.Transformer;
+import com.github.jezza.Toml;
+import com.github.jezza.TomlTable;
 import org.apache.commons.io.IOUtils;
 
 import java.io.*;
@@ -30,19 +33,23 @@ public class GlassLoaderImpl implements GlassLoader {
 
     private final List<ShardSpecification> registeredShards = new ArrayList<>();
     private final List<ShardSpecification> virtualShards = new ArrayList<>();
-    private final List<ShardInfo> shards = new ArrayList<>();
+    private final List<ShardInfoImpl> shards = new ArrayList<>();
 
-    private final Map<String, List<Map.Entry<ShardInfo, String>>> listeners = new HashMap<>();
+    private final Map<String, List<Map.Entry<ShardInfoImpl, String>>> listeners = new HashMap<>();
     private final List<Object> apis = new ArrayList<>();
     private final Map<Class<?>, Object> interfaces = new HashMap<>();
 
     private String[] programArguments;
 
+    private final List<InternalLoader> internalLoaders = new ArrayList<>();
+
     public GlassLoaderImpl() {
-        this.registerVirtualShard(new ShardSpecification("loader", "0.6.3"));
+        this.registerVirtualShard(new ShardSpecification("loader", "0.8.0"));
 
         Runtime.getRuntime().addShutdownHook(new Thread(this::saveProperties));
         Runtime.getRuntime().addShutdownHook(new Thread(() -> this.runHooks("terminate")));
+
+        this.internalLoaders.add(new InternalLoaderImpl());
     }
 
     private Properties loadProperties() {
@@ -65,11 +72,62 @@ public class GlassLoaderImpl implements GlassLoader {
         }
     }
 
-    public void appendExternalShards() {
-        if(this.getShardsFile().exists()) {
-            for(File shard : Objects.requireNonNull(this.getShardsFile().listFiles())) {
-                this.addURL(shard);
+    public void preLoad() {
+        List<URL> checkedShards = new ArrayList<>();
+        List<String> addedShards = new ArrayList<>();
+        List<File> classpath = new ArrayList<>();
+
+        for (InternalLoader internalLoader : this.internalLoaders) {
+            internalLoader.addClassPath(classpath);
+
+            for (File file : classpath) {
+                this.addURL(file);
             }
+        }
+
+        this.addLoadersClasspath(checkedShards, this.internalLoaders, addedShards, classpath);
+    }
+
+    private void addLoadersClasspath(List<URL> checkedShards, List<InternalLoader> loaders, List<String> addedShards, List<File> classpath) {
+        try {
+            Enumeration<URL> urls = GlassLoaderImpl.class.getClassLoader().getResources("glass/shard.meta");
+            while (urls.hasMoreElements()) {
+                URL url = urls.nextElement();
+                if (!checkedShards.contains(url)) {
+                    checkedShards.add(url);
+
+                    String shardName = IOUtils.toString(url.openStream(), StandardCharsets.UTF_8);
+
+                    if (!addedShards.contains(shardName)) {
+                        addedShards.add(shardName);
+                        InputStream inputStream = GlassLoaderImpl.class.getClassLoader().getResourceAsStream("glass/" + shardName + "/info.toml");
+                        if (inputStream != null) {
+                            TomlTable toml = Toml.from(inputStream);
+                            if (toml.get("internal_loader") != null) {
+                                String internalLoaderClass = (String) toml.get("internal_loader");
+
+                                InternalLoader internalLoader = (InternalLoader) Class.forName(internalLoaderClass).getConstructor().newInstance();
+                                loaders.add(internalLoader);
+
+                                List<File> classpathBackup = new ArrayList<>(classpath);
+                                internalLoader.addClassPath(classpath);
+                                for (File file : classpath) {
+                                    this.addURL(file);
+                                }
+                                for (File file : classpathBackup) {
+                                    if (!classpath.contains(file)) {
+                                        this.removeURL(file);
+                                    }
+                                }
+
+                                this.addLoadersClasspath(checkedShards, loaders, addedShards, classpath);
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (IOException | ClassNotFoundException | NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException e) {
+            e.printStackTrace();
         }
     }
 
@@ -123,11 +181,11 @@ public class GlassLoaderImpl implements GlassLoader {
 
     private void loadUpdateShardInfos() {
         try {
-            List<ShardInfo> unloadedShards = new ArrayList<>(this.shards);
+            List<ShardInfoImpl> unloadedShards = new ArrayList<>(this.shards);
             Enumeration<URL> shardMetas = this.classLoader.getResources("glass/shard.meta");
             List<String> parsedShardIds = new ArrayList<>();
 
-            List<ShardInfo> newShards = new ArrayList<>();
+            List<ShardInfoImpl> newShards = new ArrayList<>();
             while(shardMetas.hasMoreElements()) {
                 URL url = shardMetas.nextElement();
                 String shardID = IOUtils.toString(url.openStream(), StandardCharsets.UTF_8);
@@ -138,7 +196,7 @@ public class GlassLoaderImpl implements GlassLoader {
 
                 boolean alreadyLoaded = this.shards.stream().anyMatch(info -> info.getSpecification().getID().equals(shardID));
                 if(!alreadyLoaded) {
-                    ShardInfo shardInfo = ShardInfoParser.loadShardInfo("glass/" + shardID + "/info.toml", null, this.registeredShards);
+                    ShardInfoImpl shardInfo = ShardInfoParser.loadShardInfo("glass/" + shardID + "/info.toml", null, this.registeredShards);
                     if(shardInfo != null) {
                         newShards.add(shardInfo);
                         this.registerListeners(shardInfo);
@@ -149,7 +207,7 @@ public class GlassLoaderImpl implements GlassLoader {
             this.shards.addAll(newShards);
             this.runHooks("initialize", newShards);
 
-            for(ShardInfo shardInfo : unloadedShards) {
+            for(ShardInfoImpl shardInfo : unloadedShards) {
                 this.shards.remove(shardInfo);
                 this.runHooks("terminate", Collections.singletonList(shardInfo));
                 this.unregisterListeners(shardInfo);
@@ -159,9 +217,9 @@ public class GlassLoaderImpl implements GlassLoader {
         }
     }
 
-    private void registerListeners(ShardInfo shardInfo) {
+    private void registerListeners(ShardInfoImpl shardInfo) {
         for(ShardInfo implementation : shardInfo.getImplementations()) {
-            this.registerListeners(implementation);
+            this.registerListeners((ShardInfoImpl) implementation);
         }
 
         Map<String, List<String>> listeners = shardInfo.getListeners();
@@ -172,12 +230,12 @@ public class GlassLoaderImpl implements GlassLoader {
         }
     }
 
-    private void unregisterListeners(ShardInfo shardInfo) {
+    private void unregisterListeners(ShardInfoImpl shardInfo) {
         for(ShardInfo implementation : shardInfo.getImplementations()) {
-            this.unregisterListeners(implementation);
+            this.unregisterListeners((ShardInfoImpl) implementation);
         }
 
-        for(Map.Entry<String, List<Map.Entry<ShardInfo, String>>> listener : listeners.entrySet()) {
+        for(Map.Entry<String, List<Map.Entry<ShardInfoImpl, String>>> listener : listeners.entrySet()) {
             listener.getValue().removeIf(entry -> entry.getKey().equals(shardInfo));
         }
     }
@@ -187,21 +245,21 @@ public class GlassLoaderImpl implements GlassLoader {
         this.runHooks(hook, this.shards);
     }
 
-    public void runHooks(String hook, List<ShardInfo> targets) {
+    public void runHooks(String hook, List<ShardInfoImpl> targets) {
         List<ShardSpecification> executedListeners = new ArrayList<>();
-        List<Map.Entry<ShardInfo, String>> listeners = new ArrayList<>(this.listeners.getOrDefault(hook, new ArrayList<>()));
-        List<Map.Entry<ShardInfo, String>> filteredListeners = listeners
+        List<Map.Entry<ShardInfoImpl, String>> listeners = new ArrayList<>(this.listeners.getOrDefault(hook, new ArrayList<>()));
+        List<Map.Entry<ShardInfoImpl, String>> filteredListeners = listeners
                 .stream()
                 .filter(listener -> targets.contains(this.getMainParent(listener.getKey())))
                 .collect(Collectors.toList());
 
         int i = 0;
         while(i < filteredListeners.size()) {
-            Map.Entry<ShardInfo, String> listener = filteredListeners.get(i);
+            Map.Entry<ShardInfoImpl, String> listener = filteredListeners.get(i);
             boolean canLoad = true;
             for(ShardSpecification shardSpecification : getHas(listener.getKey())) {
                 boolean satisfied = true;
-                for(Map.Entry<ShardInfo, String> listener1 : filteredListeners) {
+                for(Map.Entry<ShardInfoImpl, String> listener1 : filteredListeners) {
                     if(shardSpecification.isSatisfied(listener1.getKey().getSpecification())) {
                         satisfied = false;
                     }
@@ -234,7 +292,7 @@ public class GlassLoaderImpl implements GlassLoader {
         }
     }
 
-    private List<ShardSpecification> getHas(ShardInfo shardInfo) {
+    private List<ShardSpecification> getHas(ShardInfoImpl shardInfo) {
         List<ShardSpecification> has = new ArrayList<>(shardInfo.getEnvironment().getHas());
         if(shardInfo.getParent() != null) {
             has.addAll(getHas(shardInfo.getParent()));
@@ -242,7 +300,7 @@ public class GlassLoaderImpl implements GlassLoader {
         return has;
     }
 
-    private ShardInfo getMainParent(ShardInfo shardInfo) {
+    private ShardInfoImpl getMainParent(ShardInfoImpl shardInfo) {
         if(shardInfo.getParent() != null) {
             return this.getMainParent(shardInfo.getParent());
         }
@@ -296,14 +354,15 @@ public class GlassLoaderImpl implements GlassLoader {
                 argsClasses[i] = args[i].getClass();
             }
 
-            Method removeURL = this.classLoader.getClass().getMethod(name, argsClasses);
-            removeURL.invoke(this.classLoader, args);
+            Method method = this.classLoader.getClass().getMethod(name, argsClasses);
+            method.invoke(this.classLoader, args);
+
         } catch(NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
             e.printStackTrace();
         }
     }
 
-    public File getShardsFile() {
+    /*public File getShardsFile() {
         return new File(this.glassProperties.getProperty(GlassProperty.SHARDS_FILE));
     }
 
@@ -317,6 +376,6 @@ public class GlassLoaderImpl implements GlassLoader {
 
     public String getProperty(String key) {
         return this.glassProperties.getProperty(key);
-    }
+    }*/
 
 }

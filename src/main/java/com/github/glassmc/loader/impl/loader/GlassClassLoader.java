@@ -20,9 +20,11 @@ public class GlassClassLoader extends URLClassLoader {
 
     private final List<URL> urls = new ArrayList<>();
 
+    private final ClassLoader parent = GlassClassLoader.class.getClassLoader();
+
     public GlassClassLoader() throws ClassNotFoundException, NoSuchMethodException {
-        super(new URL[0], GlassClassLoader.class.getClassLoader());
-        this.urls.addAll(Arrays.asList(super.getURLs()));
+        super(new URL[0], null);
+        //this.urls.addAll(Arrays.asList(super.getURLs()));
 
         this.exclusions.add("java.");
         this.exclusions.add("jdk.internal.");
@@ -38,13 +40,14 @@ public class GlassClassLoader extends URLClassLoader {
 
         this.canTransformMethod = this.loadClass("com.github.glassmc.loader.api.loader.Transformer").getMethod("canTransform", String.class);
         this.transformMethod = this.loadClass("com.github.glassmc.loader.api.loader.Transformer").getMethod("transform", String.class, byte[].class);
+
     }
 
     @Override
     public Class<?> loadClass(String name) throws ClassNotFoundException {
         for (String exclusion : this.exclusions) {
             if (name.startsWith(exclusion)) {
-                return super.loadClass(name);
+                return parent.loadClass(name);
             }
         }
 
@@ -90,21 +93,18 @@ public class GlassClassLoader extends URLClassLoader {
 
     @Override
     public Enumeration<URL> getResources(String name) throws IOException {
-        List<URL> parentResources = Collections.list(this.getParent().getResources(name));
-        List<URL> filteredURLs = new ArrayList<>();
-        Enumeration<URL> urls = super.getResources(name);
-        while(urls.hasMoreElements()) {
-            URL url = urls.nextElement();
-            for(URL pathURL : this.urls) {
-                if(url.getFile().contains(pathURL.getFile())) {
-                    filteredURLs.add(url);
+        List<URL> parentResources = Collections.list(parent.getResources(name));
+
+        List<URL> filteredURLs = new ArrayList<>(parentResources);
+
+        for (URL pathUrl : Collections.list(this.findResources(name))) {
+            for (URL url : this.urls) {
+                if (pathUrl.getFile().contains(url.getFile())) {
+                    filteredURLs.add(pathUrl);
                 }
             }
-
-            if(parentResources.contains(url)) {
-                filteredURLs.add(url);
-            }
         }
+
         return Collections.enumeration(filteredURLs);
     }
 
@@ -118,7 +118,7 @@ public class GlassClassLoader extends URLClassLoader {
         } catch(IOException e) {
             e.printStackTrace();
         }
-        return super.getResource(name);
+        return parent.getResource(name);
     }
 
     public void addURL(URL url) {

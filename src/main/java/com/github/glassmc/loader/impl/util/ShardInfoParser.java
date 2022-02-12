@@ -1,6 +1,6 @@
 package com.github.glassmc.loader.impl.util;
 
-import com.github.glassmc.loader.impl.ShardInfo;
+import com.github.glassmc.loader.impl.ShardInfoImpl;
 import com.github.glassmc.loader.impl.ShardSpecification;
 import com.github.glassmc.loader.impl.exception.NoSuchShardException;
 import com.github.jezza.Toml;
@@ -16,7 +16,7 @@ import java.util.Map;
 public class ShardInfoParser {
 
     @SuppressWarnings("unchecked")
-    public static ShardInfo loadShardInfo(String path, String overrideID, List<ShardSpecification> registeredShards) {
+    public static ShardInfoImpl loadShardInfo(String path, String overrideID, List<ShardSpecification> registeredShards) {
         ClassLoader classLoader = ShardInfoParser.class.getClassLoader();
         try {
             InputStream shardInfoStream = classLoader.getResourceAsStream(path);
@@ -71,9 +71,9 @@ public class ShardInfoParser {
             }
 
             List<String> implementationsList = (List<String>) shardInfoTOML.getOrDefault("implementations", new ArrayList<>());
-            List<ShardInfo> implementations = new ArrayList<>();
+            List<ShardInfoImpl> implementations = new ArrayList<>();
             for(String implementationID : implementationsList) {
-                ShardInfo shardInfo = loadShardInfo("glass/" + id.replace("-", "/") + "/" + implementationID + "/info.toml", id + "-" + implementationID, registeredShards);
+                ShardInfoImpl shardInfo = loadShardInfo("glass/" + id.replace("-", "/") + "/" + implementationID + "/info.toml", id + "-" + implementationID, registeredShards);
                 if(shardInfo != null) {
                     implementations.add(shardInfo);
                 }
@@ -105,7 +105,7 @@ public class ShardInfoParser {
                 }
             }
 
-            return new ShardInfo(specification, listeners, new ShardInfo.Environment(has, lacks), implementations);
+            return new ShardInfoImpl(specification, listeners, new ShardInfoImpl.EnvironmentImpl(has, lacks), implementations);
         } catch (IOException e) {
             e.printStackTrace();
         }

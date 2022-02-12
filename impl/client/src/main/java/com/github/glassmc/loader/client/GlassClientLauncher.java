@@ -13,7 +13,7 @@ public class GlassClientLauncher {
     public static void main(String[] args) {
         GlassLoaderImpl glassLoader = (GlassLoaderImpl) GlassLoader.getInstance();
         glassLoader.registerVirtualShard(new ShardSpecification("client", args[Arrays.asList(args).indexOf("--version") + 1]));
-        glassLoader.appendExternalShards();
+        glassLoader.preLoad();
 
         glassLoader.loadUpdateShards();
 

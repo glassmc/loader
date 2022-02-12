@@ -20,7 +20,7 @@ plugins {
 apply plugin: 'kiln-main'
 
 group 'com.github.glassmc'
-version '0.7.0'
+version '0.8.0'
 
 sourceCompatibility = targetCompatibility = 1.8
 
