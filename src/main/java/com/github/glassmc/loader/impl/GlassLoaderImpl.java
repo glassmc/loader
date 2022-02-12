@@ -4,6 +4,7 @@ import com.github.glassmc.loader.api.GlassLoader;
 import com.github.glassmc.loader.api.InternalLoader;
 import com.github.glassmc.loader.api.Listener;
 import com.github.glassmc.loader.api.ShardInfo;
+import com.github.glassmc.loader.api.loader.TransformerOrder;
 import com.github.glassmc.loader.impl.exception.NoSuchApiException;
 import com.github.glassmc.loader.impl.exception.NoSuchInterfaceException;
 import com.github.glassmc.loader.impl.util.ShardInfoParser;
@@ -44,7 +45,7 @@ public class GlassLoaderImpl implements GlassLoader {
     private final List<InternalLoader> internalLoaders = new ArrayList<>();
 
     public GlassLoaderImpl() {
-        this.registerVirtualShard(new ShardSpecification("loader", "0.8.0"));
+        this.registerVirtualShard(new ShardSpecification("loader", "0.8.1"));
 
         Runtime.getRuntime().addShutdownHook(new Thread(this::saveProperties));
         Runtime.getRuntime().addShutdownHook(new Thread(() -> this.runHooks("terminate")));
@@ -343,8 +344,8 @@ public class GlassLoaderImpl implements GlassLoader {
     }
 
     @Override
-    public void registerTransformer(Class<? extends Transformer> transformer) {
-        this.invokeClassloaderMethod("addTransformer", transformer);
+    public void registerTransformer(Class<? extends Transformer> transformer, TransformerOrder order) {
+        this.invokeClassloaderMethod("addTransformer", transformer, order);
     }
 
     private void invokeClassloaderMethod(String name, Object... args) {

@@ -1,5 +1,6 @@
 package com.github.glassmc.loader.impl.loader;
 
+import com.github.glassmc.loader.api.loader.TransformerOrder;
 import org.apache.commons.io.IOUtils;
 
 import java.io.IOException;
@@ -12,7 +13,7 @@ import java.util.*;
 
 public class GlassClassLoader extends URLClassLoader {
 
-    private final List<Object> transformers = new ArrayList<>();
+    private final List<Object>[] transformers = new List[3];
     private final Method canTransformMethod;
     private final Method transformMethod;
 
@@ -24,7 +25,10 @@ public class GlassClassLoader extends URLClassLoader {
 
     public GlassClassLoader() throws ClassNotFoundException, NoSuchMethodException {
         super(new URL[0], null);
-        //this.urls.addAll(Arrays.asList(super.getURLs()));
+
+        for (int i = 0; i < 3; i++) {
+            this.transformers[i] = new ArrayList<>();
+        }
 
         this.exclusions.add("java.");
         this.exclusions.add("jdk.internal.");
@@ -38,9 +42,10 @@ public class GlassClassLoader extends URLClassLoader {
         this.exclusions.add("org.apache.");
         this.exclusions.add("org.slf4j.");
 
+        this.exclusions.add("com.github.glassmc.loader.api.loader.Transformer");
+
         this.canTransformMethod = this.loadClass("com.github.glassmc.loader.api.loader.Transformer").getMethod("canTransform", String.class);
         this.transformMethod = this.loadClass("com.github.glassmc.loader.api.loader.Transformer").getMethod("transform", String.class, byte[].class);
-
     }
 
     @Override
@@ -65,7 +70,7 @@ public class GlassClassLoader extends URLClassLoader {
             throw new ClassNotFoundException(name);
         }
 
-        for(Object transformer : this.transformers) {
+        for(Object transformer : this.getTransformers()) {
             String formattedName = name.replace(".", "/");
             try {
                 if ((boolean) canTransformMethod.invoke(transformer, formattedName)) {
@@ -77,6 +82,16 @@ public class GlassClassLoader extends URLClassLoader {
         }
 
         return data;
+    }
+
+    private List<Object> getTransformers() {
+        List<Object> transformers = new ArrayList<>();
+
+        transformers.addAll(this.transformers[0]);
+        transformers.addAll(this.transformers[1]);
+        transformers.addAll(this.transformers[2]);
+
+        return transformers;
     }
 
     private byte[] loadClassData(String className) {
@@ -132,9 +147,25 @@ public class GlassClassLoader extends URLClassLoader {
     }
 
     @SuppressWarnings("unused")
-    public void addTransformer(Class<?> transformer) {
+    public void addTransformer(Class<?> transformer, TransformerOrder order) {
         try {
-            this.transformers.add(transformer.getConstructor().newInstance());
+            int listIndex;
+            switch (order) {
+                case FIRST:
+                    listIndex = 0;
+                    break;
+                case LAST:
+                    listIndex = 2;
+                    break;
+                case DEFAULT:
+                    listIndex = 1;
+                    break;
+                default:
+                    listIndex = -1;
+                    break;
+            }
+
+            this.transformers[listIndex].add(transformer.getConstructor().newInstance());
         } catch (InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
             e.printStackTrace();
         }

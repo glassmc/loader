@@ -1,6 +1,7 @@
 package com.github.glassmc.loader.api;
 
 import com.github.glassmc.loader.api.loader.Transformer;
+import com.github.glassmc.loader.api.loader.TransformerOrder;
 import org.apache.commons.io.IOUtils;
 
 import java.io.IOException;
@@ -37,6 +38,10 @@ public interface GlassLoader {
 
     <T> T getInterface(Class<T> interfaceClass);
 
-    void registerTransformer(Class<? extends Transformer> transformer);
+    default void registerTransformer(Class<? extends Transformer> transformer) {
+        this.registerTransformer(transformer, TransformerOrder.DEFAULT);
+    }
+
+    void registerTransformer(Class<? extends Transformer> transformer, TransformerOrder order);
 
 }
