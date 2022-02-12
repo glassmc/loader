@@ -27,8 +27,6 @@ public class GlassLoaderImpl implements GlassLoader {
 
     private static final GlassLoaderImpl INSTANCE = new GlassLoaderImpl();
 
-    private final Properties glassProperties = loadProperties();
-
     private final File shardsHome = new File("shards");
     private final ClassLoader classLoader = GlassLoaderImpl.class.getClassLoader();
 
@@ -45,32 +43,11 @@ public class GlassLoaderImpl implements GlassLoader {
     private final List<InternalLoader> internalLoaders = new ArrayList<>();
 
     public GlassLoaderImpl() {
-        this.registerVirtualShard(new ShardSpecification("loader", "0.8.1"));
+        this.registerVirtualShard(new ShardSpecification("loader", "0.8.2"));
 
-        Runtime.getRuntime().addShutdownHook(new Thread(this::saveProperties));
         Runtime.getRuntime().addShutdownHook(new Thread(() -> this.runHooks("terminate")));
 
         this.internalLoaders.add(new InternalLoaderImpl());
-    }
-
-    private Properties loadProperties() {
-        Properties properties = new Properties();
-        properties.setProperty("shardsFile", "shards");
-
-        try {
-            InputStream glassProperties = new FileInputStream("glass.properties");
-            properties.load(glassProperties);
-        } catch (IOException ignored) { }
-
-        return properties;
-    }
-
-    private void saveProperties() {
-        try {
-            this.glassProperties.store(new FileOutputStream("glass.properties"), null);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
 
     public void preLoad() {
@@ -362,21 +339,5 @@ public class GlassLoaderImpl implements GlassLoader {
             e.printStackTrace();
         }
     }
-
-    /*public File getShardsFile() {
-        return new File(this.glassProperties.getProperty(GlassProperty.SHARDS_FILE));
-    }
-
-    public File getShardsHome() {
-        return shardsHome;
-    }
-
-    public void setProperty(String key, String value) {
-        this.glassProperties.setProperty(key, value);
-    }
-
-    public String getProperty(String key) {
-        return this.glassProperties.getProperty(key);
-    }*/
 
 }
