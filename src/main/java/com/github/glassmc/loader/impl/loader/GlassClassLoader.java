@@ -31,7 +31,7 @@ public class GlassClassLoader extends URLClassLoader {
         }
 
         this.exclusions.add("java.");
-        this.exclusions.add("jdk.internal.");
+        this.exclusions.add("jdk.");
         this.exclusions.add("javax.");
 
         this.exclusions.add("sun.");
@@ -41,6 +41,7 @@ public class GlassClassLoader extends URLClassLoader {
 
         this.exclusions.add("org.apache.");
         this.exclusions.add("org.slf4j.");
+        this.exclusions.add("com.mojang.blocklist.");
 
         this.exclusions.add("com.github.glassmc.loader.api.loader.Transformer");
 
