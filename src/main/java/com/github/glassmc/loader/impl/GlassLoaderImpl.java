@@ -42,8 +42,6 @@ public class GlassLoaderImpl implements GlassLoader {
 
     private final List<InternalLoader> internalLoaders = new ArrayList<>();
 
-    @SuppressWarnings({"FieldCanBeLocal", "FieldMayBeFinal"})
-
     public GlassLoaderImpl() {
         this.registerVirtualShard(new ShardSpecification("loader", "INSERTED_BY_BUILD"));
 
@@ -84,9 +82,14 @@ public class GlassLoaderImpl implements GlassLoader {
                         if (inputStream != null) {
                             TomlTable toml = Toml.from(inputStream);
                             if (toml.get("internal_loader") != null) {
-                                String internalLoaderClass = (String) toml.get("internal_loader");
+                                String before = "";
+                                if (toml.get("namespace") != null) {
+                                    before = toml.get("namespace") + ".";
+                                }
+                                String internalLoaderClass = before + toml.get("internal_loader");
 
                                 InternalLoader internalLoader = (InternalLoader) Class.forName(internalLoaderClass).getConstructor().newInstance();
+                                internalLoader.initialize();
                                 loaders.add(internalLoader);
 
                                 List<File> classpathBackup = new ArrayList<>(classpath);
@@ -327,7 +330,12 @@ public class GlassLoaderImpl implements GlassLoader {
         this.invokeClassloaderMethod("addTransformer", transformer, order);
     }
 
-    private void invokeClassloaderMethod(String name, Object... args) {
+    @Override
+    public byte[] getClassBytes(String name) {
+        return (byte[]) this.invokeClassloaderMethod("getModifiedBytes", name);
+    }
+
+    private Object invokeClassloaderMethod(String name, Object... args) {
         try {
             Class<?>[] argsClasses = new Class[args.length];
             for(int i = 0 ; i < args.length; i++) {
@@ -335,10 +343,11 @@ public class GlassLoaderImpl implements GlassLoader {
             }
 
             Method method = this.classLoader.getClass().getMethod(name, argsClasses);
-            method.invoke(this.classLoader, args);
+            return method.invoke(this.classLoader, args);
 
         } catch(NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
             e.printStackTrace();
+            return null;
         }
     }
 

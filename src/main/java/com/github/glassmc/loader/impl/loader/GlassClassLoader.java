@@ -16,6 +16,7 @@ public class GlassClassLoader extends URLClassLoader {
     private final List<Object>[] transformers = new List[3];
     private final Method canTransformMethod;
     private final Method transformMethod;
+    private final Method acceptsBlankMethod;
 
     private final List<String> exclusions = new ArrayList<>();
 
@@ -47,6 +48,7 @@ public class GlassClassLoader extends URLClassLoader {
 
         this.canTransformMethod = this.loadClass("com.github.glassmc.loader.api.loader.Transformer").getMethod("canTransform", String.class);
         this.transformMethod = this.loadClass("com.github.glassmc.loader.api.loader.Transformer").getMethod("transform", String.class, byte[].class);
+        this.acceptsBlankMethod = this.loadClass("com.github.glassmc.loader.api.loader.Transformer").getMethod("acceptsBlank");
     }
 
     @Override
@@ -67,19 +69,20 @@ public class GlassClassLoader extends URLClassLoader {
 
     public byte[] getModifiedBytes(String name) throws ClassNotFoundException {
         byte[] data = loadClassData(name);
-        if(data == null) {
-            throw new ClassNotFoundException(name);
-        }
 
         for(Object transformer : this.getTransformers()) {
             String formattedName = name.replace(".", "/");
             try {
-                if ((boolean) canTransformMethod.invoke(transformer, formattedName)) {
+                if ((boolean) canTransformMethod.invoke(transformer, formattedName) && (data.length > 0 || (boolean) acceptsBlankMethod.invoke(transformer))) {
                     data = (byte[]) transformMethod.invoke(transformer, formattedName, data);
                 }
             } catch(IllegalAccessException | InvocationTargetException e) {
                 e.printStackTrace();
             }
+        }
+
+        if (data.length == 0) {
+            throw new ClassNotFoundException(name);
         }
 
         return data;
@@ -104,7 +107,7 @@ public class GlassClassLoader extends URLClassLoader {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return null;
+        return new byte[0];
     }
 
     @Override

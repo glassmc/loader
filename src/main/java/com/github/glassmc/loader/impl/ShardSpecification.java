@@ -15,7 +15,7 @@ public class ShardSpecification {
     }
 
     public boolean isSatisfied(ShardSpecification other) {
-        if(!id.equals(other.getID())) {
+        if(!id.equals(other.getID()) && !id.equals("all")) {
             return false;
         }
         if(this.version.equals("*")) {

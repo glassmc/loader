@@ -12,6 +12,11 @@ public class InternalLoaderImpl implements InternalLoader {
     private final File shardsFile = new File("shards");
 
     @Override
+    public void initialize() {
+
+    }
+
+    @Override
     public void addClassPath(List<File> classpath) {
         if(shardsFile.exists()) {
             classpath.addAll(Arrays.asList(Objects.requireNonNull(shardsFile.listFiles())));
