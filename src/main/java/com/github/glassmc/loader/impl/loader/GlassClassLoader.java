@@ -134,6 +134,7 @@ public class GlassClassLoader extends URLClassLoader {
         } catch(IOException e) {
             e.printStackTrace();
         }
+
         return parent.getResource(name);
     }
 
