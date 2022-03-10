@@ -42,8 +42,10 @@ public class GlassLoaderImpl implements GlassLoader {
 
     private final List<InternalLoader> internalLoaders = new ArrayList<>();
 
+    @SuppressWarnings({"FieldCanBeLocal", "FieldMayBeFinal"})
+
     public GlassLoaderImpl() {
-        this.registerVirtualShard(new ShardSpecification("loader", "0.8.3"));
+        this.registerVirtualShard(new ShardSpecification("loader", "INSERTED_BY_BUILD"));
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> this.runHooks("terminate")));
 

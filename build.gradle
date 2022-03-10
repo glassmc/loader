@@ -1,17 +1,23 @@
 import com.github.glassmc.kiln.standard.environment.GlassLoaderEnvironment
+import com.github.glassmc.kiln.standard.CustomTransformer
+import org.objectweb.asm.tree.ClassNode
+import org.objectweb.asm.tree.LdcInsnNode
+import org.objectweb.asm.tree.MethodNode
 
 buildscript {
     repositories {
         mavenCentral()
 
-        mavenLocal()
+        maven {
+            url = 'https://glassmc.ml/repository/'
+        }
         maven {
             url = 'https://jitpack.io/'
         }
     }
 
     dependencies {
-        classpath 'com.github.glassmc:kiln:0.6.18'
+        classpath 'com.github.glassmc:kiln:0.7.0'
     }
 }
 
@@ -23,7 +29,7 @@ plugins {
 apply plugin: 'kiln-main'
 
 group 'com.github.glassmc'
-version '0.9.0'
+version '0.9.1'
 
 sourceCompatibility = targetCompatibility = 1.8
 
@@ -42,16 +48,31 @@ dependencies {
 
 kiln {
     environment = new GlassLoaderEnvironment("0.9.0")
+    transformers = [new LoaderTransformer(project.version as String)]
 }
 
-publishing {
-    publications {
-        maven(MavenPublication) {
-            groupId = project.group
-            artifactId = project.name
-            version = project.version
+class LoaderTransformer extends CustomTransformer {
 
-            from components.java
+    private final String version
+
+    LoaderTransformer(String version) {
+        this.version = version
+    }
+
+    @Override
+    void map(Map<String, ClassNode> map) {
+        ClassNode glassLoaderImpl = map.get("com/github/glassmc/loader/impl/GlassLoaderImpl")
+        MethodNode method = glassLoaderImpl.methods.stream().filter(methodNode -> {
+            methodNode.name == "<init>"
+        }).findFirst().get()
+
+        for (node in method.instructions) {
+            if (node instanceof LdcInsnNode && node.cst == "INSERTED_BY_BUILD") {
+                method.instructions.insert(node, new LdcInsnNode(version))
+                method.instructions.remove(node)
+                break
+            }
         }
     }
+
 }
