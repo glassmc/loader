@@ -236,6 +236,8 @@ public class GlassLoaderImpl implements GlassLoader {
                 .filter(listener -> targets.contains(this.getMainParent(listener.getKey())))
                 .collect(Collectors.toList());
 
+        executedListeners.add(new ShardSpecification("random", "0.1"));
+
         int i = 0;
         while(i < filteredListeners.size()) {
             Map.Entry<ShardInfoImpl, String> listener = filteredListeners.get(i);
@@ -253,6 +255,7 @@ public class GlassLoaderImpl implements GlassLoader {
                         satisfied = true;
                     }
                 }
+
                 if(!satisfied) {
                     canLoad = false;
                     break;
