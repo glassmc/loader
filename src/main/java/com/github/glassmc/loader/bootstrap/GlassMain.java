@@ -7,7 +7,7 @@ import java.lang.reflect.Method;
 
 public class GlassMain {
 
-    public static void main(String[] args) throws ClassNotFoundException, NoSuchMethodException {
+    public static void main(String[] args) throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException, IllegalAccessException {
         ClassLoader classLoader = new GlassClassLoader();
         try {
             Class<?> wrapperClass = classLoader.loadClass("com.github.glassmc.loader.bootstrap.GlassLauncher");

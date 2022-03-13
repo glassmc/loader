@@ -1,9 +1,6 @@
 package com.github.glassmc.loader.impl;
 
-import com.github.glassmc.loader.api.GlassLoader;
-import com.github.glassmc.loader.api.InternalLoader;
-import com.github.glassmc.loader.api.Listener;
-import com.github.glassmc.loader.api.ShardInfo;
+import com.github.glassmc.loader.api.*;
 import com.github.glassmc.loader.api.loader.TransformerOrder;
 import com.github.glassmc.loader.impl.exception.NoSuchApiException;
 import com.github.glassmc.loader.impl.exception.NoSuchInterfaceException;
@@ -352,6 +349,24 @@ public class GlassLoaderImpl implements GlassLoader {
             e.printStackTrace();
             return null;
         }
+    }
+
+    public byte[][] filterClasses(String name, String[] classLocations, byte[][] classDatas) {
+        List<ClassDefinition> classDefinitions = new ArrayList<>();
+
+        for (int i = 0; i < classLocations.length; i++) {
+            try {
+                classDefinitions.add(new ClassDefinition(new URL(classLocations[i]), classDatas[i]));
+            } catch (MalformedURLException e) {
+                e.printStackTrace();
+            }
+        }
+
+        for (InternalLoader loader : this.internalLoaders) {
+            loader.filterClasses(name, classDefinitions);
+        }
+
+        return classDefinitions.stream().map(ClassDefinition::getData).toArray(byte[][]::new);
     }
 
 }

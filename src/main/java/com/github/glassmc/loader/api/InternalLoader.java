@@ -5,7 +5,16 @@ import java.util.List;
 
 public interface InternalLoader {
 
-    void initialize();
-    void addClassPath(List<File> classpath);
+    default void initialize() {
+
+    }
+
+    default void addClassPath(List<File> classpath) {
+
+    }
+
+    default void filterClasses(String className, List<ClassDefinition> possibleClasses) {
+
+    }
 
 }

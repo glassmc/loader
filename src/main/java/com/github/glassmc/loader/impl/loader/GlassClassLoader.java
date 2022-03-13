@@ -10,6 +10,7 @@ import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.*;
+import java.util.jar.Manifest;
 
 public class GlassClassLoader extends URLClassLoader {
 
@@ -18,13 +19,16 @@ public class GlassClassLoader extends URLClassLoader {
     private final Method transformMethod;
     private final Method acceptsBlankMethod;
 
+    private final Object glassLoaderObject;
+    private final Method filterClassesMethod;
+
     private final List<String> exclusions = new ArrayList<>();
 
     private final List<URL> urls = new ArrayList<>();
 
     private final ClassLoader parent = GlassClassLoader.class.getClassLoader();
 
-    public GlassClassLoader() throws ClassNotFoundException, NoSuchMethodException {
+    public GlassClassLoader() throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException, IllegalAccessException {
         super(new URL[0], null);
 
         for (int i = 0; i < 3; i++) {
@@ -45,10 +49,14 @@ public class GlassClassLoader extends URLClassLoader {
         this.exclusions.add("com.mojang.blocklist.");
 
         this.exclusions.add("com.github.glassmc.loader.api.loader.Transformer");
+        this.exclusions.add("com.github.glassmc.loader.api.ClassDefinition");
 
         this.canTransformMethod = this.loadClass("com.github.glassmc.loader.api.loader.Transformer").getMethod("canTransform", String.class);
         this.transformMethod = this.loadClass("com.github.glassmc.loader.api.loader.Transformer").getMethod("transform", String.class, byte[].class);
         this.acceptsBlankMethod = this.loadClass("com.github.glassmc.loader.api.loader.Transformer").getMethod("acceptsBlank");
+
+        this.filterClassesMethod = this.loadClass("com.github.glassmc.loader.impl.GlassLoaderImpl").getMethod("filterClasses", String.class, String[].class, byte[][].class);
+        this.glassLoaderObject = this.loadClass("com.github.glassmc.loader.api.GlassLoader").getMethod("getInstance").invoke(null);
     }
 
     @Override
@@ -63,6 +71,15 @@ public class GlassClassLoader extends URLClassLoader {
         if(clazz == null) {
             byte[] data = this.getModifiedBytes(name);
             clazz = super.defineClass(name, data, 0, data.length);
+        }
+        return clazz;
+    }
+
+    @Override
+    protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+        Class<?> clazz = this.loadClass(name);
+        if (resolve) {
+            this.resolveClass(clazz);
         }
         return clazz;
     }
@@ -99,15 +116,37 @@ public class GlassClassLoader extends URLClassLoader {
     }
 
     private byte[] loadClassData(String className) {
-        InputStream inputStream = this.getResourceAsStream(className.replace(".", "/") + ".class");
         try {
-            if (inputStream != null) {
-                return IOUtils.toByteArray(inputStream);
+            Enumeration<URL> resources = this.getResources(className.replace(".", "/") + ".class");
+
+            List<String> locations = new ArrayList<>();
+            List<byte[]> datas = new ArrayList<>();
+
+            while (resources.hasMoreElements()) {
+                URL resource = resources.nextElement();
+
+                locations.add(resource.toString());
+                datas.add(IOUtils.toByteArray(resource));
             }
-        } catch (IOException e) {
+
+            byte[][] result;
+            if (this.filterClassesMethod != null && this.glassLoaderObject != null && datas.size() > 0) {
+                result = (byte[][]) this.filterClassesMethod.invoke(this.glassLoaderObject, className.replace(".", "/"), locations.toArray(new String[0]), datas.toArray(new byte[0][]));
+
+                if (result.length == 0) {
+                    result = new byte[][] { new byte[0] };
+                }
+            } else if (datas.size() > 0) {
+                result = datas.toArray(new byte[0][]);
+            } else {
+                result = new byte[][] { new byte[0] };
+            }
+
+            return result[0];
+        } catch (IOException | IllegalAccessException | InvocationTargetException e) {
             e.printStackTrace();
+            return new byte[0];
         }
-        return new byte[0];
     }
 
     @Override

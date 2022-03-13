@@ -8,6 +8,7 @@ buildscript {
     repositories {
         mavenCentral()
 
+        mavenLocal()
         maven {
             url = 'https://glassmc.ml/repository/'
         }
@@ -29,7 +30,7 @@ plugins {
 apply plugin: 'kiln-main'
 
 group 'com.github.glassmc'
-version '0.9.3'
+version '0.9.4'
 
 sourceCompatibility = targetCompatibility = 1.8
 
