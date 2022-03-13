@@ -46,4 +46,6 @@ public interface GlassLoader {
 
     byte[] getClassBytes(String name);
 
+    String getShardVersion(String id);
+
 }

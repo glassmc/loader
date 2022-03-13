@@ -17,6 +17,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 @SuppressWarnings("unused")
@@ -333,6 +334,13 @@ public class GlassLoaderImpl implements GlassLoader {
     @Override
     public byte[] getClassBytes(String name) {
         return (byte[]) this.invokeClassloaderMethod("getModifiedBytes", name);
+    }
+
+    @Override
+    public String getShardVersion(String id) {
+        AtomicReference<String> version = new AtomicReference<>(null);
+        this.registeredShards.stream().filter(shard -> shard.getID().equals(id)).findFirst().ifPresent(shard -> version.set(shard.getVersion()));
+        return version.get();
     }
 
     private Object invokeClassloaderMethod(String name, Object... args) {
