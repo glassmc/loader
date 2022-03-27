@@ -17,7 +17,7 @@ buildscript {
     }
 
     dependencies {
-        classpath 'com.github.glassmc:kiln:0.8.3'
+        classpath 'com.github.glassmc:kiln:0.8.4'
     }
 }
 
@@ -29,7 +29,7 @@ plugins {
 apply plugin: 'kiln-main'
 
 group 'com.github.glassmc'
-version '0.9.6'
+version '0.9.7'
 
 sourceCompatibility = targetCompatibility = 1.8
 
@@ -88,12 +88,5 @@ publishing {
 
             from components.java
         }
-    }
-
-    repositories {
-        maven {
-            url = "file:///home/danielc/dev/glass/repository"
-        }
-
     }
 }

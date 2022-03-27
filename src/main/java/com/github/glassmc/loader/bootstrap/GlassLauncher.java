@@ -3,7 +3,10 @@ package com.github.glassmc.loader.bootstrap;
 import com.github.glassmc.loader.api.GlassLoader;
 import com.github.glassmc.loader.impl.GlassLoaderImpl;
 import com.github.glassmc.loader.impl.ShardSpecification;
+import org.apache.commons.io.FileUtils;
 
+import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -13,7 +16,7 @@ public class GlassLauncher {
     public static void main(String[] args) {
         String environment = args[Arrays.asList(args).indexOf("--environment") + 1];
         GlassLoaderImpl glassLoader = (GlassLoaderImpl) GlassLoader.getInstance();
-        glassLoader.registerVirtualShard(new ShardSpecification(environment, args[Arrays.asList(args).indexOf("--version") + 1]));
+        glassLoader.registerVirtualShard(new ShardSpecification(environment, args[Arrays.asList(args).lastIndexOf("--glassVersion") + 1]));
         glassLoader.preLoad();
 
         glassLoader.loadUpdateShards();
