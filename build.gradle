@@ -8,7 +8,6 @@ buildscript {
     repositories {
         mavenCentral()
 
-        mavenLocal()
         maven {
             url = 'https://glassmc.ml/repository/'
         }
@@ -18,7 +17,7 @@ buildscript {
     }
 
     dependencies {
-        classpath 'com.github.glassmc:kiln:0.7.2'
+        classpath 'com.github.glassmc:kiln:0.8.0'
     }
 }
 
@@ -30,7 +29,7 @@ plugins {
 apply plugin: 'kiln-main'
 
 group 'com.github.glassmc'
-version '0.9.5'
+version '0.9.6'
 
 sourceCompatibility = targetCompatibility = 1.8
 
@@ -48,7 +47,7 @@ dependencies {
 }
 
 kiln {
-    environment = new GlassLoaderEnvironment("0.9.3")
+    environment = new GlassLoaderEnvironment(project.version as String)
     transformers = [new LoaderTransformer(project.version as String)]
 }
 
@@ -61,19 +60,33 @@ class LoaderTransformer extends CustomTransformer {
     }
 
     @Override
-    void map(Map<String, ClassNode> map) {
+    void map(List<ClassNode> context, Map<String, ClassNode> map) {
         ClassNode glassLoaderImpl = map.get("com/github/glassmc/loader/impl/GlassLoaderImpl")
-        MethodNode method = glassLoaderImpl.methods.stream().filter(methodNode -> {
-            methodNode.name == "<init>"
-        }).findFirst().get()
+        if (glassLoaderImpl != null) {
+            MethodNode method = glassLoaderImpl.methods.stream().filter(methodNode -> {
+                methodNode.name == "<init>"
+            }).findFirst().get()
 
-        for (node in method.instructions) {
-            if (node instanceof LdcInsnNode && node.cst == "INSERTED_BY_BUILD") {
-                method.instructions.insert(node, new LdcInsnNode(version))
-                method.instructions.remove(node)
-                break
+            for (node in method.instructions) {
+                if (node instanceof LdcInsnNode && node.cst == "INSERTED_BY_BUILD") {
+                    method.instructions.insert(node, new LdcInsnNode(version))
+                    method.instructions.remove(node)
+                    break
+                }
             }
         }
     }
 
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            groupId = project.group
+            artifactId = project.name
+            version = project.version
+
+            from components.java
+        }
+    }
 }

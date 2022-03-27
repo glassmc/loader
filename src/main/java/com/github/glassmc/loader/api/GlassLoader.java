@@ -44,7 +44,7 @@ public interface GlassLoader {
 
     void registerTransformer(Class<? extends Transformer> transformer, TransformerOrder order);
 
-    byte[] getClassBytes(String name);
+    byte[] getClassBytes(String name) throws ClassNotFoundException;
 
     String getShardVersion(String id);
 

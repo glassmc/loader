@@ -115,7 +115,7 @@ public class GlassLoaderImpl implements GlassLoader {
     public void addURL(File shardFile) {
         try {
             this.invokeClassloaderMethod("addURL", shardFile.toURI().toURL());
-        } catch (MalformedURLException e) {
+        } catch (Throwable e) {
             e.printStackTrace();
         }
     }
@@ -123,7 +123,7 @@ public class GlassLoaderImpl implements GlassLoader {
     public void removeURL(File shardFile) {
         try {
             this.invokeClassloaderMethod("removeURL", shardFile.toURI().toURL());
-        } catch (MalformedURLException e) {
+        } catch (Throwable e) {
             e.printStackTrace();
         }
     }
@@ -328,12 +328,23 @@ public class GlassLoaderImpl implements GlassLoader {
 
     @Override
     public void registerTransformer(Class<? extends Transformer> transformer, TransformerOrder order) {
-        this.invokeClassloaderMethod("addTransformer", transformer, order);
+        try {
+            this.invokeClassloaderMethod("addTransformer", transformer, order);
+        } catch (Throwable e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
-    public byte[] getClassBytes(String name) {
-        return (byte[]) this.invokeClassloaderMethod("getModifiedBytes", name);
+    public byte[] getClassBytes(String name) throws ClassNotFoundException {
+        try {
+            return (byte[]) this.invokeClassloaderMethod("getModifiedBytes", name);
+        } catch (ClassNotFoundException e) {
+            throw e;
+        } catch (Throwable e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     @Override
@@ -343,7 +354,7 @@ public class GlassLoaderImpl implements GlassLoader {
         return version.get();
     }
 
-    private Object invokeClassloaderMethod(String name, Object... args) {
+    private Object invokeClassloaderMethod(String name, Object... args) throws Throwable {
         try {
             Class<?>[] argsClasses = new Class[args.length];
             for(int i = 0 ; i < args.length; i++) {
@@ -353,9 +364,11 @@ public class GlassLoaderImpl implements GlassLoader {
             Method method = this.classLoader.getClass().getMethod(name, argsClasses);
             return method.invoke(this.classLoader, args);
 
-        } catch(NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+        } catch(NoSuchMethodException | IllegalAccessException e) {
             e.printStackTrace();
             return null;
+        } catch (InvocationTargetException e) {
+            throw e.getCause();
         }
     }
 
