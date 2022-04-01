@@ -29,7 +29,7 @@ plugins {
 apply plugin: 'kiln-main'
 
 group 'com.github.glassmc'
-version '0.9.7'
+version '0.9.8'
 
 sourceCompatibility = targetCompatibility = 1.8
 
@@ -88,5 +88,12 @@ publishing {
 
             from components.java
         }
+    }
+
+    repositories {
+        maven {
+            url = "file:///home/danielc/dev/glass/repository"
+        }
+
     }
 }

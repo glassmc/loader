@@ -63,7 +63,11 @@ public class GlassClassLoader extends URLClassLoader {
     public Class<?> loadClass(String name) throws ClassNotFoundException {
         for (String exclusion : this.exclusions) {
             if (name.startsWith(exclusion)) {
-                return parent.loadClass(name);
+                try {
+                    return parent.loadClass(name);
+                } catch (ClassNotFoundException ignored) {
+
+                }
             }
         }
 
