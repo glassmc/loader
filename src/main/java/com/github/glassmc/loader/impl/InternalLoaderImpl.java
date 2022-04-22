@@ -11,10 +11,9 @@ public class InternalLoaderImpl implements InternalLoader {
 
     private final File shardsFile = new File("shards");
 
-    public InternalLoaderImpl() {
-        if (!shardsFile.exists()) {
-            shardsFile.mkdirs();
-        }
+    @Override
+    public void initialize() {
+        shardsFile.mkdirs();
     }
 
     @Override
