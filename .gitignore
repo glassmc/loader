@@ -1,9 +1,16 @@
 # IntelliJ
 .idea
 
+# Eclipse
+bin/
+.settings/
+.project
+.classpath
+
 # Gradle
 .gradle
 build
 
 run/*
 !run/.gitkeep
+

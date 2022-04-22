@@ -25,7 +25,6 @@ public class GlassLoaderImpl implements GlassLoader {
 
     private static final GlassLoaderImpl INSTANCE = new GlassLoaderImpl();
 
-    private final File shardsHome = new File("shards");
     private final ClassLoader classLoader = GlassLoaderImpl.class.getClassLoader();
 
     private final List<ShardSpecification> registeredShards = new ArrayList<>();
