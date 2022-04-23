@@ -17,7 +17,7 @@ public class InternalLoaderImpl implements InternalLoader {
     }
 
     @Override
-    public void addClassPath(List<File> classpath) {
+    public void modifyClassPath(List<File> classpath) {
         if(shardsFile.exists()) {
             classpath.addAll(Arrays.asList(Objects.requireNonNull(shardsFile.listFiles())));
         }

@@ -29,10 +29,10 @@ public class GlassLoaderImpl implements GlassLoader {
 
     private final List<ShardSpecification> registeredShards = new ArrayList<>();
     private final List<ShardSpecification> virtualShards = new ArrayList<>();
-    private final List<ShardInfoImpl> shards = new ArrayList<>();
+    private final List<ShardInfo> shards = new ArrayList<>();
 
-    private final Map<String, List<Map.Entry<ShardInfoImpl, String>>> listeners = new HashMap<>();
-    private final List<Object> apis = new ArrayList<>();
+    private final Map<String, List<Map.Entry<ShardInfo, String>>> listeners = new HashMap<>();
+    private final Map<Class<?>, Object> apis = new HashMap<>();
     private final Map<Class<?>, Object> interfaces = new HashMap<>();
 
     private String[] programArguments;
@@ -53,7 +53,7 @@ public class GlassLoaderImpl implements GlassLoader {
         List<File> classpath = new ArrayList<>();
 
         for (InternalLoader internalLoader : this.internalLoaders) {
-            internalLoader.addClassPath(classpath);
+            internalLoader.modifyClassPath(classpath);
 
             for (File file : classpath) {
                 this.addURL(file);
@@ -90,7 +90,7 @@ public class GlassLoaderImpl implements GlassLoader {
                                 loaders.add(internalLoader);
 
                                 List<File> classpathBackup = new ArrayList<>(classpath);
-                                internalLoader.addClassPath(classpath);
+                                internalLoader.modifyClassPath(classpath);
                                 for (File file : classpath) {
                                     this.addURL(file);
                                 }
@@ -161,11 +161,11 @@ public class GlassLoaderImpl implements GlassLoader {
 
     private void loadUpdateShardInfos() {
         try {
-            List<ShardInfoImpl> unloadedShards = new ArrayList<>(this.shards);
+            List<ShardInfo> unloadedShards = new ArrayList<>(this.shards);
             Enumeration<URL> shardMetas = this.classLoader.getResources("glass/shard.meta");
             List<String> parsedShardIds = new ArrayList<>();
 
-            List<ShardInfoImpl> newShards = new ArrayList<>();
+            List<ShardInfo> newShards = new ArrayList<>();
             while(shardMetas.hasMoreElements()) {
                 URL url = shardMetas.nextElement();
                 String shardID = IOUtils.toString(url.openStream(), StandardCharsets.UTF_8);
@@ -176,7 +176,7 @@ public class GlassLoaderImpl implements GlassLoader {
 
                 boolean alreadyLoaded = this.shards.stream().anyMatch(info -> info.getSpecification().getID().equals(shardID));
                 if(!alreadyLoaded) {
-                    ShardInfoImpl shardInfo = ShardInfoParser.loadShardInfo("glass/" + shardID + "/info.toml", null, this.registeredShards);
+                    ShardInfo shardInfo = ShardInfoParser.loadShardInfo("glass/" + shardID + "/info.toml", null, this.registeredShards);
                     if(shardInfo != null) {
                         newShards.add(shardInfo);
                         this.registerListeners(shardInfo);
@@ -187,7 +187,7 @@ public class GlassLoaderImpl implements GlassLoader {
             this.shards.addAll(newShards);
             this.runHooks("initialize", newShards);
 
-            for(ShardInfoImpl shardInfo : unloadedShards) {
+            for(ShardInfo shardInfo : unloadedShards) {
                 this.shards.remove(shardInfo);
                 this.runHooks("terminate", Collections.singletonList(shardInfo));
                 this.unregisterListeners(shardInfo);
@@ -197,9 +197,9 @@ public class GlassLoaderImpl implements GlassLoader {
         }
     }
 
-    private void registerListeners(ShardInfoImpl shardInfo) {
+    private void registerListeners(ShardInfo shardInfo) {
         for(ShardInfo implementation : shardInfo.getImplementations()) {
-            this.registerListeners((ShardInfoImpl) implementation);
+            this.registerListeners((ShardInfo) implementation);
         }
 
         Map<String, List<String>> listeners = shardInfo.getListeners();
@@ -210,12 +210,12 @@ public class GlassLoaderImpl implements GlassLoader {
         }
     }
 
-    private void unregisterListeners(ShardInfoImpl shardInfo) {
+    private void unregisterListeners(ShardInfo shardInfo) {
         for(ShardInfo implementation : shardInfo.getImplementations()) {
-            this.unregisterListeners((ShardInfoImpl) implementation);
+            this.unregisterListeners((ShardInfo) implementation);
         }
 
-        for(Map.Entry<String, List<Map.Entry<ShardInfoImpl, String>>> listener : listeners.entrySet()) {
+        for(Map.Entry<String, List<Map.Entry<ShardInfo, String>>> listener : listeners.entrySet()) {
             listener.getValue().removeIf(entry -> entry.getKey().equals(shardInfo));
         }
     }
@@ -225,10 +225,10 @@ public class GlassLoaderImpl implements GlassLoader {
         this.runHooks(hook, this.shards);
     }
 
-    public void runHooks(String hook, List<ShardInfoImpl> targets) {
+    public void runHooks(String hook, List<ShardInfo> targets) {
         List<ShardSpecification> executedListeners = new ArrayList<>();
-        List<Map.Entry<ShardInfoImpl, String>> listeners = new ArrayList<>(this.listeners.getOrDefault(hook, new ArrayList<>()));
-        List<Map.Entry<ShardInfoImpl, String>> filteredListeners = listeners
+        List<Map.Entry<ShardInfo, String>> listeners = new ArrayList<>(this.listeners.getOrDefault(hook, new ArrayList<>()));
+        List<Map.Entry<ShardInfo, String>> filteredListeners = listeners
                 .stream()
                 .filter(listener -> targets.contains(this.getMainParent(listener.getKey())))
                 .collect(Collectors.toList());
@@ -237,11 +237,11 @@ public class GlassLoaderImpl implements GlassLoader {
 
         int i = 0;
         while(i < filteredListeners.size()) {
-            Map.Entry<ShardInfoImpl, String> listener = filteredListeners.get(i);
+            Map.Entry<ShardInfo, String> listener = filteredListeners.get(i);
             boolean canLoad = true;
             for(ShardSpecification shardSpecification : getHas(listener.getKey())) {
                 boolean satisfied = true;
-                for(Map.Entry<ShardInfoImpl, String> listener1 : filteredListeners) {
+                for(Map.Entry<ShardInfo, String> listener1 : filteredListeners) {
                     if(shardSpecification.isSatisfied(listener1.getKey().getSpecification())) {
                         satisfied = false;
                     }
@@ -275,7 +275,7 @@ public class GlassLoaderImpl implements GlassLoader {
         }
     }
 
-    private List<ShardSpecification> getHas(ShardInfoImpl shardInfo) {
+    private List<ShardSpecification> getHas(ShardInfo shardInfo) {
         List<ShardSpecification> has = new ArrayList<>(shardInfo.getEnvironment().getHas());
         if(shardInfo.getParent() != null) {
             has.addAll(getHas(shardInfo.getParent()));
@@ -283,7 +283,7 @@ public class GlassLoaderImpl implements GlassLoader {
         return has;
     }
 
-    private ShardInfoImpl getMainParent(ShardInfoImpl shardInfo) {
+    private ShardInfo getMainParent(ShardInfo shardInfo) {
         if(shardInfo.getParent() != null) {
             return this.getMainParent(shardInfo.getParent());
         }
@@ -298,22 +298,24 @@ public class GlassLoaderImpl implements GlassLoader {
 
     @Override
     public void registerAPI(Object api) {
-        this.apis.add(api);
+        this.apis.put(api.getClass(), api);
     }
 
     @Override
     public <T> T getAPI(Class<T> apiClass) {
-        for(Object api : this.apis) {
-            if(apiClass.isInstance(api)) {
-                return apiClass.cast(api);
-            }
+        Object api = this.apis.get(apiClass);
+        if (api != null) {
+            return (T) api;
         }
         throw new NoSuchApiException(apiClass);
     }
 
     @Override
-    public <T> void registerInterface(Class<T> interfaceClass, T implementer) {
-        this.interfaces.put(interfaceClass, implementer);
+    public <T> void registerInterface(Class<T> interfaceClass, T implementor) {
+        if (!interfaceClass.isInterface()) {
+            throw new IllegalStateException(interfaceClass + " is not an interface!");
+        }
+        this.interfaces.put(interfaceClass, implementor);
     }
 
     @Override

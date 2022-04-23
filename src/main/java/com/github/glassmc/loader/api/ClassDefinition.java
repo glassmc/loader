@@ -1,7 +1,12 @@
 package com.github.glassmc.loader.api;
 
 import java.net.URL;
+import java.util.List;
 
+/**
+ * Used in the {@link InternalLoader} to filter classes by their definition.
+ * @see InternalLoader#filterClasses(String, List)
+ */
 public class ClassDefinition {
 
     private final URL location;
