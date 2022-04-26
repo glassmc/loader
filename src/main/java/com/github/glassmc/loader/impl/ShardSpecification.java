@@ -3,6 +3,7 @@ package com.github.glassmc.loader.impl;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 public class ShardSpecification {
 
@@ -47,6 +48,14 @@ public class ShardSpecification {
 
     public String getVersion() {
         return version;
+    }
+
+    @Override
+    public String toString() {
+        return "ShardSpecification{" +
+                "id='" + id + '\'' +
+                ", version='" + version + '\'' +
+                '}';
     }
 
     private static class Version {

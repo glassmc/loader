@@ -199,7 +199,7 @@ public class GlassLoaderImpl implements GlassLoader {
 
     private void registerListeners(ShardInfo shardInfo) {
         for(ShardInfo implementation : shardInfo.getImplementations()) {
-            this.registerListeners((ShardInfo) implementation);
+            this.registerListeners(implementation);
         }
 
         Map<String, List<String>> listeners = shardInfo.getListeners();
@@ -212,7 +212,7 @@ public class GlassLoaderImpl implements GlassLoader {
 
     private void unregisterListeners(ShardInfo shardInfo) {
         for(ShardInfo implementation : shardInfo.getImplementations()) {
-            this.unregisterListeners((ShardInfo) implementation);
+            this.unregisterListeners(implementation);
         }
 
         for(Map.Entry<String, List<Map.Entry<ShardInfo, String>>> listener : listeners.entrySet()) {
@@ -226,30 +226,23 @@ public class GlassLoaderImpl implements GlassLoader {
     }
 
     public void runHooks(String hook, List<ShardInfo> targets) {
-        List<ShardSpecification> executedListeners = new ArrayList<>();
         List<Map.Entry<ShardInfo, String>> listeners = new ArrayList<>(this.listeners.getOrDefault(hook, new ArrayList<>()));
         List<Map.Entry<ShardInfo, String>> filteredListeners = listeners
                 .stream()
                 .filter(listener -> targets.contains(this.getMainParent(listener.getKey())))
                 .collect(Collectors.toList());
 
-        executedListeners.add(new ShardSpecification("random", "0.1"));
-
-        int i = 0;
-        while(i < filteredListeners.size()) {
-            Map.Entry<ShardInfo, String> listener = filteredListeners.get(i);
+        while(filteredListeners.size() > 0) {
+            Map.Entry<ShardInfo, String> listener = filteredListeners.get(0);
             boolean canLoad = true;
             for(ShardSpecification shardSpecification : getHas(listener.getKey())) {
                 boolean satisfied = true;
-                for(Map.Entry<ShardInfo, String> listener1 : filteredListeners) {
-                    if(shardSpecification.isSatisfied(listener1.getKey().getSpecification())) {
-                        satisfied = false;
-                    }
-                }
 
-                for(ShardSpecification specification : executedListeners) {
-                    if(shardSpecification.isSatisfied(specification)) {
-                        satisfied = true;
+                if (listeners.stream().anyMatch(listener2 -> shardSpecification.isSatisfied(listener2.getKey().getSpecification()))) {
+                    for (Map.Entry<ShardInfo, String> listener1 : filteredListeners) {
+                        if (shardSpecification.isSatisfied(listener1.getKey().getSpecification()) && !listener1.getKey().getSpecification().getID().equals(listener.getKey().getSpecification().getID())) {
+                            satisfied = false;
+                        }
                     }
                 }
 
@@ -260,14 +253,13 @@ public class GlassLoaderImpl implements GlassLoader {
             }
 
             if(canLoad) {
-                executedListeners.add(listener.getKey().getSpecification());
                 try {
                     Listener listener1 = (Listener) Class.forName(listener.getValue()).getConstructor().newInstance();
                     listener1.run();
                 } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException | ClassNotFoundException e) {
                     e.printStackTrace();
                 }
-                i++;
+                filteredListeners.remove(listener);
             } else {
                 filteredListeners.remove(listener);
                 filteredListeners.add(listener);
